@@ -7,5 +7,6 @@ skip-string-normalization = true
 module = [
        'scipy.*',
        'astropy.*',
+       'gwcs.*'
 ]
 ignore_missing_imports = true
