@@ -50,9 +50,7 @@ def main():
 
     # After Detector1
     fnames = sorted(glob.glob(output_dir + 'jw01840017001_02101_*nrs?_rate.fits'))
-    dir_calib = 'calib/calib_data/'
-    fnames_mask = [dir_calib + 'pixelmask_nrs1.fits', dir_calib + 'pixelmask_nrs2.fits']
-    fnames = run_pipeline_after_detector1(fnames, files_maskoutlier=fnames_mask)
+    fnames = run_pipeline_after_detector1(fnames)
 
     # Spec2
     with Pool(4) as p:
@@ -238,7 +236,7 @@ class CreateAsnFile:
         return self.fname_asn
 
 
-def run_pipeline_after_detector1(fnames, files_maskoutlier):
+def run_pipeline_after_detector1(fnames):
     '''Original pipeline for a stage between detector1 and spec2'''
     afterdet1 = AfterDetector1Pipeline()
 
@@ -250,7 +248,7 @@ def run_pipeline_after_detector1(fnames, files_maskoutlier):
 
     # parameters
     afterdet1.sigmaclip.sigma = 10
-    afterdet1.maskoutlier.fnames_mask = files_maskoutlier
+    # afterdet1.maskoutlier.fnames_mask = ['file_nrs1.fits', 'file_nrs2.fits']
 
     logger.info('Running After_Detector1...')
     return [afterdet1.run(f) for f in fnames]

@@ -1,7 +1,7 @@
 '''Pipelines
 '''
 from __future__ import annotations
-from pathlib import Path, PosixPath
+from pathlib import Path
 from jwst import datamodels
 from .background import subtract_bacground, ConfigSubtractBackground
 from .masking import masking_slitedges, ConfigMaskingSlitedge
@@ -27,10 +27,11 @@ class AfterDetector1Pipeline:
             )
 
         if not self.maskoutlier.skip:
-            if self.maskoutlier.fnames_mask != []:
-                maskoutlier = MaskOutliers(self.maskoutlier.fnames_mask)
-            else:
-                raise ValueError('filenames_mask must be specified in maskoutlier.')
+            if self.maskoutlier.fnames_mask == []:
+                fnames_data = ['pixelmask_nrs1.fits', 'pixelmask_nrs2.fits']
+                path_data = Path(__file__).resolve().parent / 'data/'
+                self.maskoutlier.fnames_mask = [str(path_data / f) for f in fnames_data]
+            maskoutlier = MaskOutliers(self.maskoutlier.fnames_mask)
             datamodel.dq = maskoutlier.flag_pixels(datamodel.dq, filename)
 
         path = Path(filename)
