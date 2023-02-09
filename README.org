@@ -11,3 +11,6 @@ To update the package, you may need to add the ~--upgrade~ option.
 #+begin_src bash
   $ pip install --upgrade git+https://github.com/sugayu/jwstgo1840.git
 #+end_src
+
+* Example
+Written in the example directroy.
