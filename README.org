@@ -5,9 +5,12 @@ You can install Tokult from the github repository using ~pip~:
 #+begin_src bash
   $ pip install git+https://github.com/sugayu/jwstgo1840.git
 #+end_src
-Before using this command, it may be good to create a new Python environment for Tokult.
+Before using this command, it may be good to create a new Python environment such as jwstcal.
 
 To update the package, you may need to add the ~--upgrade~ option.
 #+begin_src bash
   $ pip install --upgrade git+https://github.com/sugayu/jwstgo1840.git
 #+end_src
+
+* Example
+Written in the example directroy.
