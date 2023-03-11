@@ -7,6 +7,7 @@ from astropy.io import fits
 from jwst import datamodels
 from jwst.assign_wcs import nirspec
 from gwcs import wcstools
+from .assign_wcs import change_nrs_wcs_slit
 import logging
 
 logger = logging.getLogger('debuglog')
@@ -25,7 +26,10 @@ def masking_slitedges(datamodel):
 
     mask_edge = np.zeros_like(datamodel.data).astype(bool)
     for i in range(nslits):
-        slice_wcs = nirspec.nrs_wcs_set_input(datamodel, i)
+        if i == 0:
+            slice_wcs = nirspec.nrs_wcs_set_input(datamodel, i)
+        else:
+            slice_wcs = change_nrs_wcs_slit(datamodel, slice_wcs, i)
         x, y = wcstools.grid_from_bounding_box(slice_wcs.bounding_box)
         ra, _, _ = slice_wcs(x, y)
         # ra, dec, lambda = slice_wcs(x, y)
