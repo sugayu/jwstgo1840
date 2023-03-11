@@ -4,17 +4,34 @@ Motivation is to speed up deepcopy, which is very very slow (~2sec),
 used in _nrs_wcs_set_input
 '''
 import copy
+import numpy as np
 from astropy.modeling.models import Identity
 from jwst.assign_wcs.nirspec import (
     spectral_order_wrange_from_model,
     compute_bounding_box,
 )
+from jwst.assign_wcs.nirspec import nrs_wcs_set_input as jwst_nrs_wcs_set_input
 from jwst.lib.exposure_types import is_nrs_ifu_lamp
 
-__all__ = ['change_nrs_wcs_slit']
+__all__ = ['get_nrs_wcs_slit', 'change_nrs_wcs_slit', 'wcs_calfits']
 
 
 ##
+def get_nrs_wcs_slit(input_model, slit_name) -> list:
+    """
+    Returns a WCS object for a specific slit, slice or shutter.
+
+    Parameters
+    ----------
+    input_model : jwst.datamodels.DataModel
+        The data model. Must have been through the assign_wcs step.
+    slit_name : int or str
+        Slit.name of an open slit.
+    """
+    _, wrange = spectral_order_wrange_from_model(input_model)
+    return jwst_nrs_wcs_set_input(input_model, slit_name, wrange)
+
+
 def change_nrs_wcs_slit(input_model, slit_wcs, slit_name) -> list:
     """
     Change a WCSs for different slits.
@@ -26,6 +43,28 @@ def change_nrs_wcs_slit(input_model, slit_wcs, slit_name) -> list:
     """
     _, wrange = spectral_order_wrange_from_model(input_model)
     return nrs_wcs_set_input(input_model, slit_name, wrange, slit_wcs=slit_wcs)
+
+
+def wcs_calfits(input_model):
+    '''Return (ra,dec,wave) of cal.fits.
+
+    This function takes ~20 seconds.
+    '''
+    shape = input_model.data.shape
+    radecw = np.zeros((3, *shape))
+    grid_y, grid_x = np.meshgrid(np.arange(shape[1]), np.arange(shape[0]))
+
+    nslits = 30
+    for i in range(nslits):
+        if i == 0:
+            wcs_slit = get_nrs_wcs_slit(input_model, i)
+        else:
+            wcs_slit = change_nrs_wcs_slit(input_model, wcs_slit, i)
+        ra, dec, wave = wcs_slit(grid_x, grid_y)
+        radecw[0, ~np.isnan(ra.T)] = ra[~np.isnan(ra.T)]
+        radecw[1, ~np.isnan(dec.T)] = dec[~np.isnan(dec.T)]
+        radecw[2, ~np.isnan(wave.T)] = wave[~np.isnan(wave.T)]
+    return radecw
 
 
 def nrs_wcs_set_input(
