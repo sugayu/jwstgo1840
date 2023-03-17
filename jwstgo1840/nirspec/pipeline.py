@@ -17,7 +17,7 @@ class AfterDetector1Pipeline:
     def __init__(self) -> None:
         self.sigmaclip = ConfigSigmaClip()
         self.maskoutlier = ConfigMaskOutliers()
-        self.background = ConfigSubtractBackground()
+        self.subtract_1fnoise = ConfigSubtractBackground()
 
     def run(self, filename: str) -> str:
         '''Run pipeline.'''
@@ -30,9 +30,9 @@ class AfterDetector1Pipeline:
             maskoutlier = MaskOutliers(self.maskoutlier.fnames_mask)
             datamodel.dq = maskoutlier.flag_pixels(datamodel.dq, filename)
 
-        if not self.background.skip:
+        if not self.subtract_1fnoise.skip:
             datamodel.data = subtract_1fnoises_from_detector(
-                datamodel.data, datamodel.dq, self.background.move_pixels
+                datamodel.data, datamodel.dq, self.subtract_1fnoise.move_pixels
             )
 
         if not self.sigmaclip.skip:

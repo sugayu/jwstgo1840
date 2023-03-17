@@ -243,31 +243,31 @@ def run_pipeline_after_detector1(fnames):
     afterdet1.output_dir = output_dir
 
     # is_skip
-    afterdet1.sigmaclip.skip = True
     afterdet1.maskoutlier.skip = False
+    afterdet1.subtract_1fnoise.skip = False
+    afterdet1.sigmaclip.skip = True
 
     # parameters
-    afterdet1.sigmaclip.sigma = 10
     # afterdet1.maskoutlier.fnames_mask = ['file_nrs1.fits', 'file_nrs2.fits']
+    afterdet1.subtract_1fnoise.move_pixels = 5
+    afterdet1.sigmaclip.sigma = 10
 
     logger.info('Running After_Detector1...')
     return [afterdet1.run(f) for f in fnames]
 
 
-def run_pipeline_after_spec2(fnames):
+def run_pipeline_after_spec2(fnames, skip_sigmaclip=False):
     '''Original pipeline for a stage between spec2 and spec3'''
     afterspec2 = AfterSpec2Pipeline()
 
     afterspec2.output_dir = output_dir
 
     # is_skip
-    afterspec2.sigmaclip.skip = False
+    afterspec2.sigmaclip.skip = skip_sigmaclip
     afterspec2.slitedges.skip = False
-    afterspec2.background.skip = False
 
     # parameters
     afterspec2.sigmaclip.sigma = 10
-    afterspec2.background.move_pixels = 5
 
     logger.info('Running After_Detector2...')
     return [afterspec2.run(f) for f in fnames]
