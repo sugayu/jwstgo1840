@@ -61,9 +61,9 @@ def wcs_calfits(input_model):
         else:
             wcs_slit = change_nrs_wcs_slit(input_model, wcs_slit, i)
         ra, dec, wave = wcs_slit(grid_x, grid_y)
-        radecw[0, ~np.isnan(ra.T)] = ra[~np.isnan(ra.T)]
-        radecw[1, ~np.isnan(dec.T)] = dec[~np.isnan(dec.T)]
-        radecw[2, ~np.isnan(wave.T)] = wave[~np.isnan(wave.T)]
+        radecw[0, ~np.isnan(ra.T)] = ra.T[~np.isnan(ra.T)]
+        radecw[1, ~np.isnan(dec.T)] = dec.T[~np.isnan(dec.T)]
+        radecw[2, ~np.isnan(wave.T)] = wave.T[~np.isnan(wave.T)]
     return radecw
 
 

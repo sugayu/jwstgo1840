@@ -3,9 +3,11 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 import numpy as np
+from scipy.interpolate import interp1d
 from astropy.io import fits
 from astropy.stats import sigma_clip
 from .dqflag import is_dqflagged
+from .assign_wcs import wcs_calfits
 
 
 ##
@@ -34,6 +36,37 @@ def subtract_1fnoises_from_detector(data, dq, move=5, axis=0):
     data1d_ymed = np.nanmean(data_clipped, axis=axis)
     background = moving_average(data1d_ymed, 5)
     return data - np.expand_dims(background, axis)
+
+
+def subtract_global_background(input_model):
+    '''Subtract global background depending on wavelength.'''
+    data = input_model.data
+    dq = input_model.dq
+    is_ok = ~is_dqflagged(dq, 'DO_NOT_USE')
+
+    radecw = wcs_calfits(input_model)
+    wavelength = radecw[2][is_ok]
+
+    # compute global background
+    idx = np.argsort(wavelength.ravel())
+    flux1d = data[is_ok][idx]
+    is_sigmaclipped = sigma_clip(flux1d, sigma=5, maxiters=None, masked=True).mask
+    flux1d = data[is_ok][idx][~is_sigmaclipped]
+    global_background = moving_average(flux1d, 50001)
+
+    # interpolation
+    idx_effective = global_background != 0
+    effective_global_background = global_background[idx_effective]
+    wave1d = wavelength[idx][~is_sigmaclipped][idx_effective]
+    f = interp1d(
+        wave1d, effective_global_background, kind='nearest', fill_value='extrapolate'
+    )
+    global_background = f(wavelength[idx])
+
+    dummy = data[is_ok]
+    dummy[idx] = dummy[idx] - global_background
+    data[is_ok] = dummy
+    return input_model, dummy
 
 
 def subtract_bacground(data, dq, move=5, axis=0):
@@ -65,6 +98,11 @@ def moving_average(spec1d, n=5):
 class ConfigSubtractBackground:
     skip: bool = False
     move_pixels: int = 5
+
+
+@dataclass
+class ConfigSubtractGlobalBackground:
+    skip: bool = False
 
 
 def main():
