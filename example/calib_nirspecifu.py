@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import glob
 import logging
+from multiprocess import Pool
 
 # These are needed if CRDS_PATH is not set as your environment variables
 os.environ["CRDS_PATH"] = 'data/crds_cache'
