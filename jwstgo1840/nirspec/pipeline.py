@@ -3,7 +3,12 @@
 from __future__ import annotations
 from pathlib import Path
 from jwst import datamodels
-from .background import subtract_bacground, ConfigSubtractBackground
+from .background import (
+    subtract_1fnoises_from_detector,
+    subtract_global_background,
+    ConfigSubtractBackground,
+    ConfigSubtractGlobalBackground,
+)
 from .masking import masking_slitedges, ConfigMaskingSlitedge
 from .outlier import sigmaclip, MaskOutliers, ConfigSigmaClip, ConfigMaskOutliers
 
@@ -17,15 +22,11 @@ class AfterDetector1Pipeline:
     def __init__(self) -> None:
         self.sigmaclip = ConfigSigmaClip()
         self.maskoutlier = ConfigMaskOutliers()
+        self.subtract_1fnoise = ConfigSubtractBackground()
 
     def run(self, filename: str) -> str:
         '''Run pipeline.'''
         datamodel = datamodels.open(filename)
-        if not self.sigmaclip.skip:
-            datamodel.dq, _ = sigmaclip(
-                datamodel.data, datamodel.dq, sigma=self.sigmaclip.sigma
-            )
-
         if not self.maskoutlier.skip:
             if self.maskoutlier.fnames_mask == []:
                 fnames_data = ['pixelmask_nrs1.fits', 'pixelmask_nrs2.fits']
@@ -33,6 +34,16 @@ class AfterDetector1Pipeline:
                 self.maskoutlier.fnames_mask = [str(path_data / f) for f in fnames_data]
             maskoutlier = MaskOutliers(self.maskoutlier.fnames_mask)
             datamodel.dq = maskoutlier.flag_pixels(datamodel.dq, filename)
+
+        if not self.subtract_1fnoise.skip:
+            datamodel.data = subtract_1fnoises_from_detector(
+                datamodel.data, datamodel.dq, self.subtract_1fnoise.move_pixels
+            )
+
+        if not self.sigmaclip.skip:
+            datamodel.dq, _ = sigmaclip(
+                datamodel.data, datamodel.dq, sigma=self.sigmaclip.sigma
+            )
 
         path = Path(filename)
         fsave = path.name.replace('_rate', '_1_rate')
@@ -60,7 +71,7 @@ class AfterSpec2Pipeline:
     def __init__(self) -> None:
         self.sigmaclip = ConfigSigmaClip()
         self.slitedges = ConfigMaskingSlitedge()
-        self.background = ConfigSubtractBackground()
+        self.global_background = ConfigSubtractGlobalBackground()
 
     def run(self, filename: str) -> str:
         '''Run pipeline.'''
@@ -74,10 +85,8 @@ class AfterSpec2Pipeline:
         if not self.slitedges.skip:
             datamodel, _ = masking_slitedges(datamodel)
 
-        if not self.background.skip:
-            datamodel.data = subtract_bacground(
-                datamodel.data, datamodel.dq, self.background.move_pixels
-            )
+        if not self.global_background.skip:
+            datamodel, _ = subtract_global_background(datamodel)
 
         path = Path(filename)
         fsave = path.name.replace('_1_cal', '_2_cal')

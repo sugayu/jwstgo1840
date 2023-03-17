@@ -5,11 +5,12 @@ import os
 from pathlib import Path
 import glob
 import logging
+from multiprocess import Pool
 
 # These are needed if CRDS_PATH is not set as your environment variables
 os.environ["CRDS_PATH"] = 'data/crds_cache'
 os.environ["CRDS_SERVER_URL"] = 'https://jwst-crds.stsci.edu'
-os.environ["CRDS_CONTEXT"] = 'jwst_1030.pmap'
+os.environ["CRDS_CONTEXT"] = 'jwst_1062.pmap'
 
 from jwst.pipeline import calwebb_detector1, Spec2Pipeline, Spec3Pipeline
 from jwst import datamodels
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # intput of output directory
-output_dir = 'calib/calib1st/'
+output_dir = 'calib/example/'
 Path(output_dir).mkdir(exist_ok=True)
 
 
@@ -159,6 +160,7 @@ def run_pipeline_spec2(fname_rate):
     spec2.cube_build.coord_system = (
         'skyalign'  # 'ifualign', 'skyalign', or 'internal_cal'
     )
+    spec2.srctype.source_type = 'EXTENDED'
 
     logger.info('Running Spec 2...')
     # run_output = spec2(asn_file)
@@ -243,33 +245,36 @@ def run_pipeline_after_detector1(fnames):
     afterdet1.output_dir = output_dir
 
     # is_skip
-    afterdet1.sigmaclip.skip = True
     afterdet1.maskoutlier.skip = False
+    afterdet1.subtract_1fnoise.skip = False
+    afterdet1.sigmaclip.skip = True
 
     # parameters
-    afterdet1.sigmaclip.sigma = 10
     # afterdet1.maskoutlier.fnames_mask = ['file_nrs1.fits', 'file_nrs2.fits']
+    afterdet1.subtract_1fnoise.move_pixels = 5
+    afterdet1.sigmaclip.sigma = 10
 
     logger.info('Running After_Detector1...')
     return [afterdet1.run(f) for f in fnames]
 
 
-def run_pipeline_after_spec2(fnames):
+def run_pipeline_after_spec2(
+    fnames, skip_sigmaclip=False, skip_global_background=False
+):
     '''Original pipeline for a stage between spec2 and spec3'''
     afterspec2 = AfterSpec2Pipeline()
 
     afterspec2.output_dir = output_dir
 
     # is_skip
-    afterspec2.sigmaclip.skip = False
+    afterspec2.sigmaclip.skip = skip_sigmaclip
     afterspec2.slitedges.skip = False
-    afterspec2.background.skip = False
+    afterspec2.global_background.skip = skip_global_background
 
     # parameters
     afterspec2.sigmaclip.sigma = 10
-    afterspec2.background.move_pixels = 5
 
-    logger.info('Running After_Detector2...')
+    logger.info('Running After_Spec2...')
     return [afterspec2.run(f) for f in fnames]
 
 
