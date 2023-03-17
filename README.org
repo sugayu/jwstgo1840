@@ -26,23 +26,23 @@ The first way would be recommend if you can use SSH.
 1) SSH public key authentication.
 
    If you put your public key in Github, you can access to and pip the repository with
-   #+begin_src bash
-     pip install git+ssh://git@github.com/sugayu/jwstgo1840.git
-   #+end_src
+#+begin_src bash
+  pip install git+ssh://git@github.com/sugayu/jwstgo1840.git
+#+end_src
 
 
 2) HTTP connection with personal access token authentication.
 
    If you have a personal access token created in Github, you can use it as
-   #+begin_src bash
-     pip install git+https://YOUR_GITHUB_TOKEN@github.com/sugayu/jwstgo1840.git
-   #+end_src
+#+begin_src bash
+  pip install git+https://YOUR_GITHUB_TOKEN@github.com/sugayu/jwstgo1840.git
+#+end_src
    where ~YOUR_GITHUB_TOKEN~ is your personal access token.
    Please google details of the token.
 
 To update the package, you may need to add the ~--upgrade~ option.
 #+begin_src bash
-  $ pip install --upgrade git+https://github.com/sugayu/jwstgo1840.git  # this may not be working too.
+  pip install --upgrade git+https://github.com/sugayu/jwstgo1840.git  # this may not be working too.
 #+end_src
 
 * Short description
