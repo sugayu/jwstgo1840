@@ -4,9 +4,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import numpy as np
 from astropy.io import fits
+from astropy.wcs import WCS
+import astropy.units as u
+from astropy.units import Quantity
+from astropy.coordinates import SkyCoord
+from photutils.aperture import SkyCircularAperture
 from jwst import datamodels
 from gwcs import wcstools
-from .assign_wcs import get_nrs_wcs_slit, change_nrs_wcs_slit
+from .assign_wcs import get_nrs_wcs_slit, change_nrs_wcs_slit, wcs_calfits
 import logging
 
 logger = logging.getLogger('debuglog')
@@ -49,6 +54,69 @@ def masking_slitedges(datamodel):
     datamodel.dq[mask_edge] += dqflag['DO_NOT_USE']
 
     return datamodel, mask_edge
+
+
+class NIRSpecIFUMask:
+    '''To create masks for a data cube and _cal.fits images.
+
+    NOTE:
+    This class assumes that the coordinates of the data cube and _cal.fits images are the same.
+    Do not use the data cube after a wcs correction.
+    '''
+
+    def __init__(self, filename_cube: str) -> None:
+        self.fname = filename_cube
+        self.data = fits.getdata(self.fname, 'SCI')
+        self.header = fits.getheader(self.fname, 'SCI')
+        self.wcs = WCS(self.header)
+        self.mask = np.zeros_like(self.data, dtype=bool)
+        self.positions: SkyCoord
+        self.radii: Quantity
+        self.waves: Quantity
+
+    def add_circularmasks(
+        self, positions: SkyCoord, radii: Quantity, wavelengths: list[Quantity]
+    ) -> None:
+        '''Add circular masks.'''
+        try:
+            self.positions = np.concatenate((self.positions, SkyCoord))
+            self.radii = np.concatenate((self.radii, radii))
+            self.waves = np.concatenate((self.waves, wavelengths))
+        except AttributeError:
+            self.positions = positions
+            self.radii = radii
+            self.wave = wavelengths
+
+        wave_cube = self.wcs.spectral.pixel_to_world(np.arange(self.data.shape[0]))
+        for p, r, w in zip(positions, radii, wavelengths):
+            aperture = SkyCircularAperture(p, r=r).to_pixel(self.wcs.celestial)
+            apermask = aperture.to_mask(method='center')
+            mask_aperture = apermask.to_image(self.data.shape[1:]).astype(bool)
+            mask_wave = (wave_cube > w[0]) & (wave_cube < w[1])
+            self.mask |= (
+                mask_aperture[np.newaxis, :, :] & mask_wave[:, np.newaxis, np.newaxis]
+            )
+
+    def mask_cal2d(self, fname_or_datamodel: str | datamodels):
+        '''Create mask for _cal.fits.'''
+        if isinstance(fname_or_datamodel, str):
+            datamodel = datamodels.open(fname_or_datamodel)
+        elif isinstance(fname_or_datamodel, datamodels):
+            datamodel = fname_or_datamodel
+        else:
+            raise TypeError('The input argument must be str or datamodels.')
+
+        mask = np.zeros_like(datamodel.data).astype(bool)
+        ra, dec, wavelengths = wcs_calfits(datamodel)
+        ra = ra * u.deg
+        dec = dec * u.deg
+        wavelengths = wavelengths * u.um
+        for p, r, w in zip(self.positions, self.radii, self.wave):
+            distance = (ra - p.ra.to(u.deg)) ** 2 + (dec - p.dec.to(u.deg)) ** 2
+            within_circle = distance < r.to(u.deg) ** 2
+            within_wave = (wavelengths > w[0]) & (wavelengths < w[1])
+            mask |= within_circle & within_wave
+        return mask
 
 
 @dataclass
