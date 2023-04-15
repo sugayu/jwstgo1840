@@ -6,8 +6,10 @@ from jwst import datamodels
 from .background import (
     subtract_1fnoises_from_detector,
     subtract_global_background,
+    subtract_slits_background,
     ConfigSubtractBackground,
     ConfigSubtractGlobalBackground,
+    ConfigSubtractSlitsBackground,
 )
 from .masking import (
     masking_slitedges,
@@ -78,6 +80,7 @@ class AfterSpec2Pipeline:
         self.sigmaclip = ConfigSigmaClip()
         self.slitedges = ConfigMaskingSlitedge()
         self.global_background = ConfigSubtractGlobalBackground()
+        self.slits_background = ConfigSubtractSlitsBackground()
 
     def run(self, filename: str) -> str:
         '''Run pipeline.'''
@@ -96,6 +99,9 @@ class AfterSpec2Pipeline:
 
         if not self.global_background.skip:
             datamodel, _ = subtract_global_background(datamodel)
+
+        if not self.slits_background.skip:
+            datamodel = subtract_slits_background(datamodel)
 
         path = Path(filename)
         fsave = path.name.replace('_1_cal', '_2_cal')

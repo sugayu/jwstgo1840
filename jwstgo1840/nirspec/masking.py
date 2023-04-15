@@ -22,7 +22,7 @@ logger = logging.getLogger('debuglog')
 
 
 ##
-def masking_slitedges(datamodel):
+def masking_slitedges(datamodel: datamodels) -> tuple[datamodels, np.ndarray]:
     '''Mask slit edges of NIRSPec IFU.
 
     The slit edges of NIRSpec IFU show large noises, which should be excluded
@@ -57,7 +57,6 @@ def where_are_edges(
     Importantly, edge widths depend on the detector (nrs1 or nrs2) and
     the slit numbers (0-29).
     '''
-    global dict_npix
     x, y = wcstools.grid_from_bounding_box(slice_wcs.bounding_box)
     ra, _, _ = slice_wcs(x, y)
     # ra, dec, lambda = slice_wcs(x, y)

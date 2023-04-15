@@ -5,6 +5,7 @@ used in _nrs_wcs_set_input
 '''
 import copy
 import numpy as np
+from astropy.wcs import WCS
 from astropy.modeling.models import Identity
 from jwst.assign_wcs.nirspec import (
     spectral_order_wrange_from_model,
@@ -17,7 +18,7 @@ __all__ = ['get_nrs_wcs_slit', 'change_nrs_wcs_slit', 'wcs_calfits']
 
 
 ##
-def get_nrs_wcs_slit(input_model, slit_name) -> list:
+def get_nrs_wcs_slit(input_model, slit_name) -> WCS:
     """
     Returns a WCS object for a specific slit, slice or shutter.
 
@@ -32,7 +33,7 @@ def get_nrs_wcs_slit(input_model, slit_name) -> list:
     return jwst_nrs_wcs_set_input(input_model, slit_name, wrange)
 
 
-def change_nrs_wcs_slit(input_model, slit_wcs, slit_name) -> list:
+def change_nrs_wcs_slit(input_model, slit_wcs, slit_name) -> WCS:
     """
     Change a WCSs for different slits.
 
