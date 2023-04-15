@@ -1,6 +1,7 @@
 '''Mask pixels in NIRSpec IFU data
 '''
 from __future__ import annotations
+from typing import Optional
 from dataclasses import dataclass, field
 import numpy as np
 from astropy.io import fits
@@ -12,10 +13,12 @@ from photutils.aperture import SkyCircularAperture
 from jwst import datamodels
 from gwcs import wcstools
 from .assign_wcs import get_nrs_wcs_slit, change_nrs_wcs_slit, wcs_calfits
+from .dqflag import is_dqflagged, dqflag
 import logging
 
+__all__ = ['NIRSpecIFUMask', 'ConfigMaskingSlitedge']
+
 logger = logging.getLogger('debuglog')
-dqflag = datamodels.dqflags.pixel
 
 
 ##
@@ -27,6 +30,7 @@ def masking_slitedges(datamodel):
     '''
     logger.info(f'Masking slitedges of {datamodel.meta.filename}...')
     nslits = 30  # for NIRSpec IFU
+    detector = datamodel.meta.instrument.detector
 
     mask_edge = np.zeros_like(datamodel.data).astype(bool)
     for i in range(nslits):
@@ -34,26 +38,91 @@ def masking_slitedges(datamodel):
             slice_wcs = get_nrs_wcs_slit(datamodel, i)
         else:
             slice_wcs = change_nrs_wcs_slit(datamodel, slice_wcs, i)
-        x, y = wcstools.grid_from_bounding_box(slice_wcs.bounding_box)
-        ra, _, _ = slice_wcs(x, y)
-        # ra, dec, lambda = slice_wcs(x, y)
 
-        y2 = np.copy(y)
-        y2[np.isnan(ra)] = y.min() - 1
-        pos_edge_upper = np.argmax(y2, axis=0)
-        y2[np.isnan(ra)] = y.max() + 1
-        pos_edge_lower = np.argmin(y2, axis=0)
+        y, x = where_are_edges(slice_wcs, detector, i)
+        mask_edge[y, x] = True
 
-        x, y = x.astype(int), y.astype(int)
-        pos_x = np.arange(x.shape[1]).astype(int)
-        mask_edge[y[pos_edge_lower, pos_x], x[pos_edge_lower, pos_x]] = True
-        mask_edge[y[pos_edge_upper, pos_x], x[pos_edge_upper, pos_x]] = True
-
-    already_flagged = np.bitwise_and(datamodel.dq, dqflag['DO_NOT_USE']).astype(bool)
+    already_flagged = already_flagged = is_dqflagged(datamodel.dq, 'DO_NOT_USE')
     mask_edge[already_flagged] = False
     datamodel.dq[mask_edge] += dqflag['DO_NOT_USE']
 
     return datamodel, mask_edge
+
+
+def where_are_edges(
+    slice_wcs: WCS, detector: Optional[str] = None, i_slice: Optional[int] = None
+) -> tuple[np.ndarray, np.ndarray]:
+    '''Detect where are edges of slits.
+
+    Importantly, edge widths depend on the detector (nrs1 or nrs2) and
+    the slit numbers (0-29).
+    '''
+    global dict_npix
+    x, y = wcstools.grid_from_bounding_box(slice_wcs.bounding_box)
+    ra, _, _ = slice_wcs(x, y)
+    # ra, dec, lambda = slice_wcs(x, y)
+
+    y2 = np.copy(y)
+    y2[np.isnan(ra)] = y.min() - 1
+    pos_edge_upper = np.argmax(y2, axis=0)
+    y2[np.isnan(ra)] = y.max() + 1
+    pos_edge_lower = np.argmin(y2, axis=0)
+
+    wup, wlow = get_edgewidths(detector, i_slice)
+
+    x, y = x.astype(int), y.astype(int)
+    pos_x = np.arange(x.shape[1]).astype(int)
+    concate = np.concatenate
+    idx_y1 = concate([y[pos_edge_lower + i, pos_x] for i in range(wlow)])
+    idx_x1 = concate([x[pos_edge_lower + i, pos_x] for i in range(wlow)])
+    idx_y2 = concate([y[pos_edge_upper - i, pos_x] for i in range(wup)])
+    idx_x2 = concate([x[pos_edge_upper - i, pos_x] for i in range(wup)])
+
+    idx_y = concate((idx_y1, idx_y2))
+    idx_x = concate((idx_x1, idx_x2))
+    return idx_y, idx_x
+
+
+def get_edgewidths(
+    detector: Optional[str] = None, i_slice: Optional[int] = None
+) -> tuple[int, int]:
+    '''Get edge widths depends on detector name and slice number.
+
+        Args:
+            detector (Optional[str], optional): Defaults to None.
+            i_slice (Optional[int], optional): Defaults to None
+    .
+
+        Returns:
+            tuple[int, int]: width of upper and lower edges, respectively.
+
+        Examples:
+            >>> up, low = get_edgewiths('NRS1', 0)
+    '''
+    if (detector is None) or (i_slice is None):
+        return 1, 1
+
+    if detector == 'NRS1':
+        if i_slice == 27:  # 1 from top
+            return 1, 3
+        if i_slice == 19:  # 5 from top
+            return 1, 3
+        if i_slice == 13:  # 8 from top
+            return 5, 1
+
+    if detector == 'NRS2':
+        if i_slice == 27:  # 1 from top
+            return 1, 3
+        if i_slice == 19:  # 5 from top
+            return 1, 4
+        if i_slice == 13:  # 8 from top
+            return 4, 1
+        if i_slice == 16:  # 23 from top
+            return 15, 1
+        if i_slice == 26:  # 28 from top
+            return 2, 1
+
+    return 1, 1
 
 
 class NIRSpecIFUMask:
