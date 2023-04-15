@@ -13,6 +13,13 @@ This is an example to create a virtual environment ~jwstcal~ (shared by Ken).
   pip install multiprocess        # methods of multiprocessing used by Alex
 #+end_src
 
+If you failed ~pip install -r ....txt~, the following code might help you.
+#+begin_src bash
+  curl https://ssb.stsci.edu/releases/jwstdp/1.9.5/reqs_macos-stable-deps.txt > reqs_macos-stable-deps.txt
+  # Edit the downloaded file to remove "codecov==2.1.12".
+  pip install -r reqs_macos-stable-deps.txt
+#+end_src
+
 ** pip install
 When the Github repository is public, you can install ~jwstgo1840~ using ~pip~:
 #+begin_src bash
@@ -56,10 +63,13 @@ In AfterDetector1Pipeline, there are three additional reduction processes:
   3) sigma clipping.
 Present pipeline may not need the sigma clipping, so that it is turned off in the example below.
 
-In AfterDetector1Pipeline, there are three additional reduction processes:
-  1) sigma clipping
-  2) masking slit edges,
-  3) subtracting global background.
+In AfterSpec2Pipeline, there are three additional reduction processes:
+  1) clipping pixels with MSA_FAILED_OPEN
+  2) sigma clipping
+  3) masking slit edges,
+  4) subtracting global background.
+and current version includes options of
+  5) subtracting slit backgrounds
 
 ** Not implemented (or to do)
 The custom pipeline does not include
@@ -74,6 +84,47 @@ From discussions in team meetings and external meetings, we concluded that the f
 Therefore, additional flux calibration steps are not implemented.
 
 * Example
+** NIRSpec reduction
 Examples are written in the example directory.
 
 An example of NIRSpec calibration is written in example/calib_nirspecifu.py.
+
+** Create _cal.fits mask
+~NIRSpecIFUMask~ provides a mask for _cal.fits that corresponds to a circular mask in the sky.
+This will help to mask objects for additional reductions like strict sigma clipping.
+
+Example usage:
+#+begin_src python
+  import astropy.units as u
+  from astropy.coordinates import SkyCoord
+  from jwstgo1840.nirspec.masking import NIRSpecIFUMask
+
+  fname3d = 'calib/example/product_name_g395h-f290lp_s3d.fits'
+  fname2d = 'calib/example/jw01840017001_02101_00001_nrs2_2_cal.fits'
+
+  ifumask = NIRSpecIFUMask(fname3d)
+  positions = SkyCoord([('00h14m24.9217s', '-30d22m56.160s')])
+  radii = [0.4] * u.arcsec
+  waves = [[4.3, 4.5]] * u.um
+  ifumask.add_circularmasks(positions, radii, waves)
+  mask2d = ifumask.mask_cal2d(fname2d)
+#+end_src
+
+** WCS in _cal.fits
+~wcs_calfits~ provides RA, DEC, and wavelengths for _cal.fits.
+
+#+begin_src python
+  from jwst import datamodels
+  from jwstgo1840.nirspec.background import wcs_calfits
+
+  fname = 'calib/example/jw01840017001_02101_00001_nrs1_2_cal.fits'
+  datamodel = datamodels.open(fname)
+  radecw = wcs_calfits(input_model)
+#+end_src
+
+* Release Notes
+** version 0.2.0
+- Add an option to subtract slit backgrounds after global background subtraction
+- Mask MSA_FAILED_OPEN
+- Improve slit edge masking by increasing edge widths
+- Add function to create object masks for cal.fits
