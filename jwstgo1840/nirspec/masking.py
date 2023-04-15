@@ -125,6 +125,15 @@ def get_edgewidths(
     return 1, 1
 
 
+def masking_msa_failed_open(datamodel: datamodels) -> datamodels:
+    '''Mask pixels with dq of MSA_FAILED_OPEN.'''
+    msa_failed_open = is_dqflagged(datamodel.dq, 'MSA_FAILED_OPEN')
+    already_flagged = is_dqflagged(datamodel.dq, 'DO_NOT_USE')
+    msa_failed_open[already_flagged] = False
+    datamodel.dq[msa_failed_open] += dqflag['DO_NOT_USE']
+    return datamodel
+
+
 class NIRSpecIFUMask:
     '''To create masks for a data cube and _cal.fits images.
 
@@ -190,6 +199,11 @@ class NIRSpecIFUMask:
 
 @dataclass
 class ConfigMaskingSlitedge:
+    skip: bool = False
+
+
+@dataclass
+class ConfigMaskingFailedSlitOpen:
     skip: bool = False
 
 
