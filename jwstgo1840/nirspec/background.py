@@ -6,8 +6,10 @@ import numpy as np
 from scipy.interpolate import interp1d
 from astropy.io import fits
 from astropy.stats import sigma_clip
+from jwst import datamodels
+from gwcs import wcstools
 from .dqflag import is_dqflagged
-from .assign_wcs import wcs_calfits
+from .assign_wcs import wcs_calfits, get_nrs_wcs_slit, change_nrs_wcs_slit
 
 
 ##
@@ -36,6 +38,43 @@ def subtract_1fnoises_from_detector(data, dq, move=5, axis=0):
     data1d_ymed = np.nanmean(data_clipped, axis=axis)
     background = moving_average(data1d_ymed, 5)
     return data - np.expand_dims(background, axis)
+
+
+def subtract_slits_background(input_model: datamodels) -> datamodels:
+    '''Subtract slit backgrounds depending detector and slits.
+
+    Current codes work after global background subtraction,
+    but the best timing to work is under consideration.
+
+    When computing backgrounds, this function separates data into two and
+    computes two backgrounds. This is because pixel values oscillate pixel by pixel.
+    Backgrounds vary from one skip to the next.
+    '''
+    nslits = 30  # for NIRSpec IFU
+    data = input_model.data
+    dq = input_model.dq
+    is_flagged = is_dqflagged(dq, 'DO_NOT_USE')
+    _data = data.copy()
+    _data[is_flagged] = np.nan
+
+    for i in range(nslits):
+        if i == 0:
+            slice_wcs = get_nrs_wcs_slit(input_model, i)
+        else:
+            slice_wcs = change_nrs_wcs_slit(input_model, slice_wcs, i)
+
+        x, y = wcstools.grid_from_bounding_box(slice_wcs.bounding_box)
+        x, y = x.astype(int), y.astype(int)
+        slit = _data[y, x]
+
+        # Two backgrounds estimated because of oscillation
+        background1 = np.nanmedian(slit[0::2, :])
+        background2 = np.nanmedian(slit[1::2, :])
+
+        data[y[0::2, :], x[0::2, :]] -= background1
+        data[y[1::2, :], x[1::2, :]] -= background2
+
+    return input_model
 
 
 def subtract_global_background(input_model):
@@ -102,6 +141,11 @@ class ConfigSubtractBackground:
 
 @dataclass
 class ConfigSubtractGlobalBackground:
+    skip: bool = False
+
+
+@dataclass
+class ConfigSubtractSlitsBackground:
     skip: bool = False
 
 

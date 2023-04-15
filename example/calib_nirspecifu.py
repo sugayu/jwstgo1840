@@ -10,7 +10,7 @@ from multiprocess import Pool
 # These are needed if CRDS_PATH is not set as your environment variables
 os.environ["CRDS_PATH"] = 'data/crds_cache'
 os.environ["CRDS_SERVER_URL"] = 'https://jwst-crds.stsci.edu'
-os.environ["CRDS_CONTEXT"] = 'jwst_1062.pmap'
+os.environ["CRDS_CONTEXT"] = 'jwst_1077.pmap'
 
 from jwst.pipeline import calwebb_detector1, Spec2Pipeline, Spec3Pipeline
 from jwst import datamodels
@@ -47,7 +47,7 @@ def main():
 
     # Detector1
     for f in fname:
-        run_pipeline_detector1(dname_data + f, maximum_cores='quater')
+        run_pipeline_detector1(dname_data + f, maximum_cores='quarter')
 
     # After Detector1
     fnames = sorted(glob.glob(output_dir + 'jw01840017001_02101_*nrs?_rate.fits'))
@@ -156,7 +156,7 @@ def run_pipeline_spec2(fname_rate):
     spec2.cube_build.skip = False
     spec2.extract_1d.skip = True
 
-    spec2.cube_build.weighting = 'emsm'  # 'emsm' or 'drizzle'
+    spec2.cube_build.weighting = 'drizzle'  # 'emsm' or 'drizzle'
     spec2.cube_build.coord_system = (
         'skyalign'  # 'ifualign', 'skyalign', or 'internal_cal'
     )
@@ -181,7 +181,7 @@ def run_pipeline_spec3(fname_cal, extract_1d_skip=True):
     # spec3.outlier_detection.skip = True
 
     # Cube building configuration
-    spec3.cube_build.weighting = 'emsm'  # 'emsm' or 'drizzle'
+    spec3.cube_build.weighting = 'drizzle'  # 'emsm' or 'drizzle'
     spec3.cube_build.coord_system = (
         'skyalign'  # 'ifualign', 'skyalign', or 'internal_cal'
     )
@@ -258,18 +258,18 @@ def run_pipeline_after_detector1(fnames):
     return [afterdet1.run(f) for f in fnames]
 
 
-def run_pipeline_after_spec2(
-    fnames, skip_sigmaclip=False, skip_global_background=False
-):
+def run_pipeline_after_spec2(fnames, skip_sigmaclip=False, skip_background=False):
     '''Original pipeline for a stage between spec2 and spec3'''
     afterspec2 = AfterSpec2Pipeline()
 
     afterspec2.output_dir = output_dir
 
     # is_skip
+    afterspec2.failed_slit_open.skip = False
     afterspec2.sigmaclip.skip = skip_sigmaclip
     afterspec2.slitedges.skip = False
-    afterspec2.global_background.skip = skip_global_background
+    afterspec2.global_background.skip = skip_background
+    afterspec2.slits_background.skip = skip_background
 
     # parameters
     afterspec2.sigmaclip.sigma = 10

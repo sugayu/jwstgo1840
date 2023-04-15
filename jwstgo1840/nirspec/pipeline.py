@@ -6,10 +6,17 @@ from jwst import datamodels
 from .background import (
     subtract_1fnoises_from_detector,
     subtract_global_background,
+    subtract_slits_background,
     ConfigSubtractBackground,
     ConfigSubtractGlobalBackground,
+    ConfigSubtractSlitsBackground,
 )
-from .masking import masking_slitedges, ConfigMaskingSlitedge
+from .masking import (
+    masking_slitedges,
+    masking_msa_failed_open,
+    ConfigMaskingSlitedge,
+    ConfigMaskingFailedSlitOpen,
+)
 from .outlier import sigmaclip, MaskOutliers, ConfigSigmaClip, ConfigMaskOutliers
 
 
@@ -69,13 +76,18 @@ class AfterSpec2Pipeline:
     output_dir: Path | str | None = None
 
     def __init__(self) -> None:
+        self.failed_slit_open = ConfigMaskingFailedSlitOpen()
         self.sigmaclip = ConfigSigmaClip()
         self.slitedges = ConfigMaskingSlitedge()
         self.global_background = ConfigSubtractGlobalBackground()
+        self.slits_background = ConfigSubtractSlitsBackground()
 
     def run(self, filename: str) -> str:
         '''Run pipeline.'''
         datamodel = datamodels.open(filename)
+
+        if not self.failed_slit_open.skip:
+            datamodel = masking_msa_failed_open(datamodel)
 
         if not self.sigmaclip.skip:
             datamodel.dq, _ = sigmaclip(
@@ -87,6 +99,9 @@ class AfterSpec2Pipeline:
 
         if not self.global_background.skip:
             datamodel, _ = subtract_global_background(datamodel)
+
+        if not self.slits_background.skip:
+            datamodel = subtract_slits_background(datamodel)
 
         path = Path(filename)
         fsave = path.name.replace('_1_cal', '_2_cal')
