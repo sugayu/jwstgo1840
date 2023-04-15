@@ -30,7 +30,7 @@ However, ~jwstgo1840~ is currently private; therefore, you have to pass an authe
 There are two ways of authentication.
 The first way would be recommend if you can use SSH.
 
-1) SSH public key authentication.
+1 --- SSH public key authentication.
 
    If you put your public key in Github, you can access to and pip the repository with
 #+begin_src bash
@@ -38,7 +38,7 @@ The first way would be recommend if you can use SSH.
 #+end_src
 
 
-2) HTTP connection with personal access token authentication.
+2 --- HTTP connection with personal access token authentication.
 
    If you have a personal access token created in Github, you can use it as
 #+begin_src bash
@@ -58,23 +58,35 @@ In our custom pipeline, we added (currently) two reduction steps during the proc
 One is AfterDetector1Pipeline and the other is AfterSpec2Pipeline.
 
 In AfterDetector1Pipeline, there are three additional reduction processes:
-  1) masking outliers (including hot pixels),
-  2) subtracting 1/f noises,
-  3) sigma clipping.
+
+  1 ---  masking outliers (including hot pixels),
+
+  2 ---  subtracting 1/f noises,
+
+  3 ---  sigma clipping.
+
 Present pipeline may not need the sigma clipping, so that it is turned off in the example below.
 
 In AfterSpec2Pipeline, there are three additional reduction processes:
-  1) clipping pixels with MSA_FAILED_OPEN
-  2) sigma clipping
-  3) masking slit edges,
-  4) subtracting global background.
+
+  1 ---  clipping pixels with MSA_FAILED_OPEN
+
+  2 ---  sigma clipping
+
+  3 ---  masking slit edges,
+
+  4 ---  subtracting global background.
+
 and current version includes options of
-  5) subtracting slit backgrounds
+
+  5 ---  subtracting slit backgrounds
 
 ** Not implemented (or to do)
 The custom pipeline does not include
-  1) wcs matching,
-  2) local background subtraction
+
+  1 ---  wcs matching,
+
+  2 ---  local background subtraction
 
 Functions needed for wcs matching has been already written in the code,
 but this step needs additional emission-line maps created from NIRCam images.
