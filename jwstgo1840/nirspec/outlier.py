@@ -6,7 +6,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.stats import sigma_clip
 from jwst import datamodels
-from .dqflag import dqflagging, is_dqflagged
+from .dqflag import dqflagging, is_dqflagged, dqflag
 
 
 ##
@@ -47,6 +47,20 @@ def create_pixelmask(filenames, sigma=3, threshold=3):
 
     mask = mask_count >= 3
     return mask
+
+
+def clip_raws(input_model: datamodels, raws: list[int]) -> datamodels:
+    '''Remove raws with systematic noises.'''
+    data = input_model.data
+
+    mask = np.zeros_like(data)
+    for r in raws:
+        mask[r, :] = True
+
+    already_flagged = already_flagged = is_dqflagged(input_model.dq, 'DO_NOT_USE')
+    mask[already_flagged] = False
+    input_model.dq = dqflagging(input_model.dq, mask, 'DO_NOT_USE')
+    return input_model
 
 
 class MaskOutliers:
