@@ -115,9 +115,28 @@ Example usage:
   fname2d = 'calib/example/jw01840017001_02101_00001_nrs2_2_cal.fits'
 
   ifumask = NIRSpecIFUMask(fname3d)
-  positions = SkyCoord([('00h14m24.9217s', '-30d22m56.160s')])
-  radii = [0.4] * u.arcsec
-  waves = [[4.3, 4.5]] * u.um
+  positions = SkyCoord([
+      ('00h14m24.9217s', '-30d22m56.160s'),
+      ('00h14m24.9291s', '-30d22m54.956s'),
+      ('00h14m24.9098s', '-30d22m54.936s'),
+      ('00h14m24.8742s', '-30d22m54.998s'),
+      ('00h14m24.8742s', '-30d22m54.998s'),
+      ('00h14m24.7796s', '-30d22m56.020s'),
+  ])
+  radii = [
+      0.4,
+      0.4,
+      0.3,
+      0.3,
+      0.4,
+  ] * u.arcsec
+  waves = [
+      [4.3, 4.5],
+      [4.4445, 4.45],
+      [4.442, 4.448],
+      [4.442, 4.447],
+      [4.44, 4.446],
+  ] * u.um
   ifumask.add_circularmasks(positions, radii, waves)
   mask2d = ifumask.mask_cal2d(fname2d)
 #+end_src

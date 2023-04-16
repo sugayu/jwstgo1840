@@ -269,7 +269,7 @@ def run_pipeline_after_spec2(fnames, skip_sigmaclip=False, skip_background=False
     afterspec2.sigmaclip.skip = skip_sigmaclip
     afterspec2.slitedges.skip = False
     afterspec2.global_background.skip = skip_background
-    afterspec2.slits_background.skip = skip_background
+    afterspec2.slits_background.skip = True
 
     # parameters
     afterspec2.sigmaclip.sigma = 10
