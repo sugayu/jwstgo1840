@@ -116,8 +116,8 @@ def get_edgewidths(
             return 1, 4
         if i_slice == 13:  # 8 from top
             return 4, 1
-        if i_slice == 5:  # 12 from top
-            return 15, 15
+        # if i_slice == 5:  # 12 from top
+        #     return 15, 15
         if i_slice == 16:  # 23 from top
             return 15, 1
         if i_slice == 26:  # 28 from top
