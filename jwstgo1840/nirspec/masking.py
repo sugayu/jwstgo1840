@@ -13,7 +13,7 @@ from photutils.aperture import SkyCircularAperture
 from jwst import datamodels
 from gwcs import wcstools
 from .assign_wcs import get_nrs_wcs_slit, change_nrs_wcs_slit, wcs_calfits
-from .dqflag import is_dqflagged, dqflag
+from .dqflag import is_dqflagged, dqflag, dqflagging
 import logging
 
 __all__ = ['NIRSpecIFUMask', 'ConfigMaskingSlitedge']
@@ -135,6 +135,25 @@ def masking_msa_failed_open(datamodel: datamodels) -> datamodels:
     return datamodel
 
 
+def masking_objects3D(
+        datamodel: datamodels, filename: str, fname3d: str, positions: SkyCoord, radii: Quantity, wavelengths: list[Quantity]
+        ) -> datamodels:
+    '''Masking pixels manually defined as objects'''
+    print("Masking the following objects...")
+    print("Reference 3D cube file:",fname3d)
+    ifumask = NIRSpecIFUMask(fname3d) 
+    print("Sky positions:",positions)
+    print("Circular mask radii:",radii)
+    print("Wavelengths:",wavelengths)
+    # Masking to 3D cube
+    ifumask.add_circularmasks(positions, radii, wavelengths)
+    # Apply the mask to 2D slit image; DQ flag = 'OUTLIER'
+    mask2d = ifumask.mask_cal2d(filename)
+    datamodel.dq = dqflagging(datamodel.dq, mask2d, 'OUTLIER')
+
+    return datamodel
+
+
 class NIRSpecIFUMask:
     '''To create masks for a data cube and _cal.fits images.
 
@@ -206,6 +225,10 @@ class ConfigMaskingSlitedge:
 @dataclass
 class ConfigMaskingFailedSlitOpen:
     skip: bool = False
+
+@dataclass
+class ConfigMaskingObj:
+    skip: bool = True
 
 
 def main():
