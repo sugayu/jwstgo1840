@@ -16,9 +16,12 @@ from .masking import (
     masking_msa_failed_open,
     ConfigMaskingSlitedge,
     ConfigMaskingFailedSlitOpen,
+    ConfigMaskingObj,
+    masking_objects3D,
 )
 from .outlier import sigmaclip, MaskOutliers, ConfigSigmaClip, ConfigMaskOutliers
 
+from astropy.io import fits 
 
 ##
 class AfterDetector1Pipeline:
@@ -81,6 +84,7 @@ class AfterSpec2Pipeline:
         self.slitedges = ConfigMaskingSlitedge()
         self.global_background = ConfigSubtractGlobalBackground()
         self.slits_background = ConfigSubtractSlitsBackground()
+        self.objmask = ConfigMaskingObj()
 
     def run(self, filename: str) -> str:
         '''Run pipeline.'''
@@ -89,10 +93,16 @@ class AfterSpec2Pipeline:
         if not self.failed_slit_open.skip:
             datamodel = masking_msa_failed_open(datamodel)
 
+        if not self.objmask.skip:
+            datamodel = masking_objects3D(datamodel, filename, self.objmask.fname3d, self.objmask.positions, self.objmask.radii, self.objmask.waves)
+
         if not self.sigmaclip.skip:
-            datamodel.dq, _ = sigmaclip(
+            datamodel.dq, clmask = sigmaclip(
                 datamodel.data, datamodel.dq, sigma=self.sigmaclip.sigma
             )
+            # (Optional) output clipped pixels
+            path = Path(filename); fsave = path.name.replace('_1_cal', '_2_cal_clipped'); output_dir = self.path_output_dir(path)
+            hdu = fits.PrimaryHDU(clmask.astype(int)); hdulist = fits.HDUList([hdu]); hdulist.writeto(str(output_dir / fsave),overwrite=True)
 
         if not self.slitedges.skip:
             datamodel, _ = masking_slitedges(datamodel)
