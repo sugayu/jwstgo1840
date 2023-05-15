@@ -42,7 +42,7 @@ def masking_slitedges(datamodel: datamodels) -> tuple[datamodels, np.ndarray]:
         y, x = where_are_edges(slice_wcs, detector, i)
         mask_edge[y, x] = True
 
-    already_flagged = already_flagged = is_dqflagged(datamodel.dq, 'DO_NOT_USE')
+    already_flagged = is_dqflagged(datamodel.dq, 'DO_NOT_USE')
     mask_edge[already_flagged] = False
     datamodel.dq[mask_edge] += dqflag['DO_NOT_USE']
 
