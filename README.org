@@ -67,19 +67,21 @@ In AfterDetector1Pipeline, there are three additional reduction processes:
 
 Present pipeline may not need the sigma clipping, so that it is turned off in the example below.
 
-In AfterSpec2Pipeline, there are three additional reduction processes:
+In AfterSpec2Pipeline, there are additional reduction processes:
 
   1 ---  clipping pixels with MSA_FAILED_OPEN
+  
+  2 ---  masking objects signal pixels
 
-  2 ---  sigma clipping
+  3 ---  sigma clipping
 
-  3 ---  masking slit edges,
+  4 ---  masking slit edges
 
-  4 ---  subtracting global background.
+  5 ---  subtracting global background.
 
 and current version includes options of
 
-  5 ---  subtracting slit backgrounds
+  6 ---  subtracting slit backgrounds
 
 ** Not implemented (or to do)
 The custom pipeline does not include
@@ -140,6 +142,9 @@ Example usage:
   ifumask.add_circularmasks(positions, radii, waves)
   mask2d = ifumask.mask_cal2d(fname2d)
 #+end_src
+
+This object masking is now implemented in the latest version of AfterSpec2Pipeline. 
+Please see an example usege in example/calib_nirspecifu.py. 
 
 ** WCS in _cal.fits
 ~wcs_calfits~ provides RA, DEC, and wavelengths for _cal.fits.
