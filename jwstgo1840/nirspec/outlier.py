@@ -15,16 +15,22 @@ def sigmaclip(data, dq, sigma=10):
 
     Save two files with suffix of "_pixelmask" and "_rate_clipped".
     '''
+    dq_outlier = is_dqflagged(dq,'OUTLIER')  # OUTLIER = Signal from object
+    dq_notuse = is_dqflagged(dq,'DO_NOT_USE')
+    mask = dq_notuse | dq_outlier
+    madata = np.ma.masked_array(data, mask)
+    
     sigma_clip_array = sigma_clip(
-        data,  # / np.nanmedian(datamodel.data) - 1
+        madata,  # / np.nanmedian(datamodel.data) - 1
         sigma=sigma,
         maxiters=None,
         masked=True,
+        axis=0, # Clipping along spatial direction (y-axis)
     )  # normalized to avoid errors clipping for very large values??
 
-    mask = sigma_clip_array.mask == 1  # & (mask_lines == 0)
-    dq_new = dqflagging(dq, mask, 'DO_NOT_USE')
-    return dq_new, mask
+    mask_new = (madata.mask==0) & (sigma_clip_array.mask==1) # Update mask for sigma-clipped pixels; Don't update for originally OUTLIER (=object) pixels
+    dq_new = dqflagging(dq, mask_new, 'DO_NOT_USE')
+    return dq_new, mask_new
 
 
 def create_pixelmask(filenames, sigma=3, threshold=3):
