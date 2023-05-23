@@ -20,8 +20,8 @@ from .masking import (
     masking_objects3D,
 )
 from .outlier import sigmaclip, MaskOutliers, ConfigSigmaClip, ConfigMaskOutliers
+from astropy.io import fits
 
-from astropy.io import fits 
 
 ##
 class AfterDetector1Pipeline:
@@ -89,20 +89,35 @@ class AfterSpec2Pipeline:
     def run(self, filename: str) -> str:
         '''Run pipeline.'''
         datamodel = datamodels.open(filename)
+        path = Path(filename)
 
         if not self.failed_slit_open.skip:
             datamodel = masking_msa_failed_open(datamodel)
 
-        if not self.objmask.skip:
-            datamodel = masking_objects3D(datamodel, filename, self.objmask.fname3d, self.objmask.positions, self.objmask.radii, self.objmask.waves)
+        not_skip_objmask = (
+            (not self.objmask.skip)
+            and (self.objmask.fname3d != '')
+            and (self.objmask.positions is not None)
+            and (self.objmask.radii is not None)
+            and (self.objmask.waves is not None)
+        )
+        if not_skip_objmask:
+            datamodel = masking_objects3D(
+                datamodel,
+                self.objmask.fname3d,
+                self.objmask.positions,
+                self.objmask.radii,
+                self.objmask.waves,
+            )
 
         if not self.sigmaclip.skip:
             datamodel.dq, clmask = sigmaclip(
                 datamodel.data, datamodel.dq, sigma=self.sigmaclip.sigma
             )
-            # (Optional) output clipped pixels
-            path = Path(filename); fsave = path.name.replace('_1_cal', '_2_cal_clipped'); output_dir = self.path_output_dir(path)
-            hdu = fits.PrimaryHDU(clmask.astype(int)); hdulist = fits.HDUList([hdu]); hdulist.writeto(str(output_dir / fsave),overwrite=True)
+            if self.sigmaclip.save_results:
+                fsave = path.name.replace('_1_cal', '_2_cal_clipped')
+                output_dir = self.path_output_dir(path)
+                fits.writeto(output_dir / fsave, clmask.astype(int), overwrite=True)
 
         if not self.slitedges.skip:
             datamodel, _ = masking_slitedges(datamodel)
@@ -113,7 +128,6 @@ class AfterSpec2Pipeline:
         if not self.slits_background.skip:
             datamodel = subtract_slits_background(datamodel)
 
-        path = Path(filename)
         fsave = path.name.replace('_1_cal', '_2_cal')
         output_dir = self.path_output_dir(path)
         datamodel.save(output_dir / fsave)

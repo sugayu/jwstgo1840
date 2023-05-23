@@ -42,7 +42,7 @@ def masking_slitedges(datamodel: datamodels) -> tuple[datamodels, np.ndarray]:
         y, x = where_are_edges(slice_wcs, detector, i)
         mask_edge[y, x] = True
 
-    already_flagged = already_flagged = is_dqflagged(datamodel.dq, 'DO_NOT_USE')
+    already_flagged = is_dqflagged(datamodel.dq, 'DO_NOT_USE')
     mask_edge[already_flagged] = False
     datamodel.dq[mask_edge] += dqflag['DO_NOT_USE']
 
@@ -136,19 +136,49 @@ def masking_msa_failed_open(datamodel: datamodels) -> datamodels:
 
 
 def masking_objects3D(
-        datamodel: datamodels, filename: str, fname3d: str, positions: SkyCoord, radii: Quantity, wavelengths: list[Quantity]
-        ) -> datamodels:
-    '''Masking pixels manually defined as objects'''
-    print("Masking the following objects...")
-    print("Reference 3D cube file:",fname3d)
-    ifumask = NIRSpecIFUMask(fname3d) 
-    print("Sky positions:",positions)
-    print("Circular mask radii:",radii)
-    print("Wavelengths:",wavelengths)
+    datamodel: datamodels,
+    fname3d: str,
+    positions: SkyCoord,
+    radii: Quantity,
+    wavelengths: Quantity,
+) -> datamodels:
+    '''Masking pixels manually defined as objects.
+
+    Args:
+        datamodel (datamodels): Jwst datamodel of _cal.fits
+        fname3d (str): Filename of 3d data cube.
+        positions (SkyCoord): Central positions of circular masks.
+            SkyCoord lists of (ra, dec) tuples.
+        radii (Quantity): Radii of circular masks.
+            Quantity lits of radii with units of angular distance.
+        wavelengths (Quantity): start and end wavelengths of circular masks.
+            Quantity lits of [wave0, wave1], where 0 and 1 are start and end.
+
+    Returns:
+        datamodels: datamodel with new DQ extensions.
+            The masked regions are flagged as OUTLIER.
+
+    Examples:
+        >>> new_datamodel = masking_objects3D(
+        >>>     datamodel,
+        >>>     'cube.fits',
+        >>>     SkyCoord([(('00h14m24.9217s', '-30d22m56.160s'), ('00h14m24.9291s', '-30d22m54.956s'),)]),
+        >>>     [0.4, 0.4] * u.arcsec,
+        >>>     [[4.3, 4.5], [4.4445, 4.45]] * u.um
+        >>> )
+    '''
+    logger.info("Masking the following objects...")
+    logger.info("Reference 3D cube file:{fname3d}")
+    ifumask = NIRSpecIFUMask(fname3d)
+    logger.info(f"Sky positions:{positions}")
+    logger.info(f"Circular mask radii:{radii}")
+    logger.info(f"Wavelengths:{wavelengths}")
+
     # Masking to 3D cube
     ifumask.add_circularmasks(positions, radii, wavelengths)
+
     # Apply the mask to 2D slit image; DQ flag = 'OUTLIER'
-    mask2d = ifumask.mask_cal2d(filename)
+    mask2d = ifumask.mask_cal2d(datamodel)
     datamodel.dq = dqflagging(datamodel.dq, mask2d, 'OUTLIER')
 
     return datamodel
@@ -226,8 +256,13 @@ class ConfigMaskingSlitedge:
 class ConfigMaskingFailedSlitOpen:
     skip: bool = False
 
+
 @dataclass
 class ConfigMaskingObj:
+    fname3d: str = ''
+    positions: SkyCoord | None = None
+    radii: Quantity | None = None
+    waves: Quantity | None = None
     skip: bool = True
 
 
