@@ -6,7 +6,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.stats import sigma_clip
 from jwst import datamodels
-from .dqflag import dqflagging, is_dqflagged, dqflag
+from .dqflag import dqflagging, is_dqflagged
 
 
 ##
@@ -15,20 +15,22 @@ def sigmaclip(data, dq, sigma=10):
 
     Save two files with suffix of "_pixelmask" and "_rate_clipped".
     '''
-    dq_outlier = is_dqflagged(dq,'OUTLIER')  # OUTLIER = Signal from object
-    dq_notuse = is_dqflagged(dq,'DO_NOT_USE')
+    # OUTLIER = Signal from object masked with masking_objects3D() in this code.
+    dq_outlier = is_dqflagged(dq, 'OUTLIER')
+    dq_notuse = is_dqflagged(dq, 'DO_NOT_USE')
     mask = dq_notuse | dq_outlier
     madata = np.ma.masked_array(data, mask)
-    
+
     sigma_clip_array = sigma_clip(
         madata,  # / np.nanmedian(datamodel.data) - 1
         sigma=sigma,
         maxiters=None,
         masked=True,
-        axis=0, # Clipping along spatial direction (y-axis)
+        axis=0,  # Clipping along spatial direction (y-axis)
     )  # normalized to avoid errors clipping for very large values??
 
-    mask_new = (madata.mask==0) & (sigma_clip_array.mask==1) # Update mask for sigma-clipped pixels; Don't update for originally OUTLIER (=object) pixels
+    # Update mask for sigma-clipped pixels; Don't update for originally OUTLIER (=object) pixels
+    mask_new = (madata.mask == 0) & (sigma_clip_array.mask == 1)
     dq_new = dqflagging(dq, mask_new, 'DO_NOT_USE')
     return dq_new, mask_new
 
@@ -93,8 +95,9 @@ class MaskOutliers:
 
 @dataclass
 class ConfigSigmaClip:
-    skip: bool = False
     sigma: float = 10.0
+    skip: bool = False
+    save_results: bool = False
 
 
 @dataclass
