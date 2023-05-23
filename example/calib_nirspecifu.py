@@ -6,6 +6,8 @@ from pathlib import Path
 import glob
 import logging
 from multiprocess import Pool
+from astropy.coordinates import SkyCoord
+import astropy.units as u
 
 # These are needed if CRDS_PATH is not set as your environment variables
 os.environ["CRDS_PATH"] = 'data/crds_cache'
@@ -270,9 +272,41 @@ def run_pipeline_after_spec2(fnames, skip_sigmaclip=False, skip_background=False
     afterspec2.slitedges.skip = False
     afterspec2.global_background.skip = skip_background
     afterspec2.slits_background.skip = True
+    afterspec2.objmask.skip = False  # default = True
 
     # parameters
-    afterspec2.sigmaclip.sigma = 10
+    afterspec2.sigmaclip.sigma = 5
+
+    # Set object mask if needed
+    if not afterspec2.objmask.skip:
+        # Reference 3D cube; use one before WCS fine tuning
+        afterspec2.objmask.fname3d = (
+            output_dir + 'product_name_g395h-f290lp_drrizle_s3d.fits'
+        )
+        # Set object positions / radii / wavelengths for mask
+        afterspec2.objmask.positions = SkyCoord(
+            [
+                ('00h14m24.9217s', '-30d22m56.160s'),
+                ('00h14m24.9291s', '-30d22m54.956s'),
+                ('00h14m24.9098s', '-30d22m54.936s'),
+                ('00h14m24.8742s', '-30d22m54.998s'),
+                ('00h14m24.7796s', '-30d22m56.020s'),
+            ]
+        )
+        afterspec2.objmask.radii = [
+            0.4,
+            0.4,
+            0.3,
+            0.3,
+            0.4,
+        ] * u.arcsec
+        afterspec2.objmask.waves = [
+            [4.3, 4.5],
+            [4.4445, 4.45],
+            [4.442, 4.448],
+            [4.442, 4.447],
+            [4.44, 4.446],
+        ] * u.um
 
     logger.info('Running After_Spec2...')
     return [afterspec2.run(f) for f in fnames]
