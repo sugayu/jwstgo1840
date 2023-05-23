@@ -112,7 +112,6 @@ Example usage:
       ('00h14m24.9291s', '-30d22m54.956s'),
       ('00h14m24.9098s', '-30d22m54.936s'),
       ('00h14m24.8742s', '-30d22m54.998s'),
-      ('00h14m24.8742s', '-30d22m54.998s'),
       ('00h14m24.7796s', '-30d22m56.020s'),
   ])
   radii = [
@@ -145,7 +144,7 @@ Please see an example usege in example/calib_nirspecifu.py.
 
   fname = 'calib/example/jw01840017001_02101_00001_nrs1_2_cal.fits'
   datamodel = datamodels.open(fname)
-  radecw = wcs_calfits(input_model)
+  radecw = wcs_calfits(datamodel)
 #+end_src
 
 * Release Notes
