@@ -59,36 +59,26 @@ One is AfterDetector1Pipeline and the other is AfterSpec2Pipeline.
 
 In AfterDetector1Pipeline, there are three additional reduction processes:
 
-  1 ---  masking outliers (including hot pixels),
-
-  2 ---  subtracting 1/f noises,
-
-  3 ---  sigma clipping.
+  1.masking outliers (including hot pixels),
+  1.subtracting 1/f noises,
+  1.sigma clipping.
 
 Present pipeline may not need the sigma clipping, so that it is turned off in the example below.
 
 In AfterSpec2Pipeline, there are additional reduction processes:
 
-  1 ---  clipping pixels with MSA_FAILED_OPEN
-  
-  2 ---  masking objects signal pixels
-
-  3 ---  sigma clipping
-
-  4 ---  masking slit edges
-
-  5 ---  subtracting global background.
-
-and current version includes options of
-
-  6 ---  subtracting slit backgrounds
+  1. clipping pixels with MSA_FAILED_OPEN
+  1. masking objects signal pixels
+  1. sigma clipping
+  1. masking slit edges
+  1. subtracting global background.
+  1. subtracting slit backgrounds (optional)
 
 ** Not implemented (or to do)
 The custom pipeline does not include
 
-  1 ---  wcs matching,
-
-  2 ---  local background subtraction
+  1. wcs matching,
+  1. local background subtraction
 
 Functions needed for wcs matching has been already written in the code,
 but this step needs additional emission-line maps created from NIRCam images.
@@ -143,8 +133,8 @@ Example usage:
   mask2d = ifumask.mask_cal2d(fname2d)
 #+end_src
 
-This object masking is now implemented in the latest version of AfterSpec2Pipeline. 
-Please see an example usege in example/calib_nirspecifu.py. 
+This object masking is now implemented in the latest version of AfterSpec2Pipeline.
+Please see an example usege in example/calib_nirspecifu.py.
 
 ** WCS in _cal.fits
 ~wcs_calfits~ provides RA, DEC, and wavelengths for _cal.fits.
@@ -159,6 +149,9 @@ Please see an example usege in example/calib_nirspecifu.py.
 #+end_src
 
 * Release Notes
+** version 0.3.0
+- Add objmask step to mask objects for 5 sigma clipping
+
 ** version 0.2.0
 - Add an option to subtract slit backgrounds after global background subtraction
 - Mask MSA_FAILED_OPEN

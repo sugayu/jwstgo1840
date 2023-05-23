@@ -94,6 +94,7 @@ class AfterSpec2Pipeline:
         if not self.failed_slit_open.skip:
             datamodel = masking_msa_failed_open(datamodel)
 
+        # Mask objects
         not_skip_objmask = (
             (not self.objmask.skip)
             and (self.objmask.fname3d != '')
