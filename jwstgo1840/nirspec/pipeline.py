@@ -20,6 +20,7 @@ from .masking import (
     masking_objects3D,
 )
 from .outlier import sigmaclip, MaskOutliers, ConfigSigmaClip, ConfigMaskOutliers
+from .filtergratingflag import can_process_nrs2, ConfigCanProcessNRS2
 from astropy.io import fits
 
 
@@ -33,10 +34,23 @@ class AfterDetector1Pipeline:
         self.sigmaclip = ConfigSigmaClip()
         self.maskoutlier = ConfigMaskOutliers()
         self.subtract_1fnoise = ConfigSubtractBackground()
+        self.check_process_nrs2 = ConfigCanProcessNRS2()
 
     def run(self, filename: str) -> str:
         '''Run pipeline.'''
         datamodel = datamodels.open(filename)
+
+        if not self.check_process_nrs2.skip:
+            detector = datamodel.meta.instrument.detector
+            is_nrs2 = detector == 'NRS2'
+            if is_nrs2 and (not can_process_nrs2(datamodel)):
+                grating = datamodel.meta.instrument.grating
+                filter_ = datamodel.meta.instrument.filter
+                raise ValueError(
+                    f'In this setup of {grating}/{filter_}, the spectra do not extend to nrs2. '
+                    f'Please remove nrs2 from the input data set.'
+                )
+
         if not self.maskoutlier.skip:
             if self.maskoutlier.fnames_mask == []:
                 fnames_data = ['pixelmask_nrs1.fits', 'pixelmask_nrs2.fits']
