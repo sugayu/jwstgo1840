@@ -6,6 +6,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.stats import sigma_clip
 from jwst import datamodels
+from jwst.datamodels import IFUImageModel
 from .dqflag import dqflagging, is_dqflagged
 
 
@@ -57,7 +58,7 @@ def create_pixelmask(filenames, sigma=3, threshold=3):
     return mask
 
 
-def clip_raws(input_model: datamodels, raws: list[int]) -> datamodels:
+def clip_raws(input_model: IFUImageModel, raws: list[int]) -> IFUImageModel:
     '''Remove raws with systematic noises.'''
     data = input_model.data
 
