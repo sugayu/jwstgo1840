@@ -11,6 +11,7 @@ from astropy.units import Quantity
 from astropy.coordinates import SkyCoord
 from photutils.aperture import SkyCircularAperture
 from jwst import datamodels
+from jwst.datamodels import IFUImageModel
 from gwcs import wcstools
 from .assign_wcs import get_nrs_wcs_slit, change_nrs_wcs_slit, wcs_calfits
 from .dqflag import is_dqflagged, dqflag, dqflagging
@@ -22,7 +23,7 @@ logger = logging.getLogger('debuglog')
 
 
 ##
-def masking_slitedges(datamodel: datamodels) -> tuple[datamodels, np.ndarray]:
+def masking_slitedges(datamodel: IFUImageModel) -> tuple[IFUImageModel, np.ndarray]:
     '''Mask slit edges of NIRSPec IFU.
 
     The slit edges of NIRSpec IFU show large noises, which should be excluded
@@ -126,7 +127,7 @@ def get_edgewidths(
     return 1, 1
 
 
-def masking_msa_failed_open(datamodel: datamodels) -> datamodels:
+def masking_msa_failed_open(datamodel: IFUImageModel) -> IFUImageModel:
     '''Mask pixels with dq of MSA_FAILED_OPEN.'''
     msa_failed_open = is_dqflagged(datamodel.dq, 'MSA_FAILED_OPEN')
     already_flagged = is_dqflagged(datamodel.dq, 'DO_NOT_USE')
@@ -136,12 +137,12 @@ def masking_msa_failed_open(datamodel: datamodels) -> datamodels:
 
 
 def masking_objects3D(
-    datamodel: datamodels,
+    datamodel: IFUImageModel,
     fname3d: str,
     positions: SkyCoord,
     radii: Quantity,
     wavelengths: Quantity,
-) -> datamodels:
+) -> IFUImageModel:
     '''Masking pixels manually defined as objects.
 
     Args:
@@ -155,7 +156,7 @@ def masking_objects3D(
             Quantity lits of [wave0, wave1], where 0 and 1 are start and end.
 
     Returns:
-        datamodels: datamodel with new DQ extensions.
+        IFUImageModel: datamodel with new DQ extensions.
             The masked regions are flagged as OUTLIER.
 
     Examples:
@@ -225,11 +226,11 @@ class NIRSpecIFUMask:
                 mask_aperture[np.newaxis, :, :] & mask_wave[:, np.newaxis, np.newaxis]
             )
 
-    def mask_cal2d(self, fname_or_datamodel: str | datamodels):
+    def mask_cal2d(self, fname_or_datamodel: str | IFUImageModel):
         '''Create mask for _cal.fits.'''
         if isinstance(fname_or_datamodel, str):
             datamodel = datamodels.open(fname_or_datamodel)
-        elif isinstance(fname_or_datamodel, datamodels):
+        elif isinstance(fname_or_datamodel, IFUImageModel):
             datamodel = fname_or_datamodel
         else:
             raise TypeError('The input argument must be str or datamodels.')
