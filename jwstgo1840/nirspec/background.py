@@ -6,7 +6,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 from astropy.io import fits
 from astropy.stats import sigma_clip
-from jwst import datamodels
+from jwst.datamodels import IFUImageModel
 from gwcs import wcstools
 from .dqflag import is_dqflagged
 from .assign_wcs import wcs_calfits, get_nrs_wcs_slit, change_nrs_wcs_slit
@@ -40,7 +40,7 @@ def subtract_1fnoises_from_detector(data, dq, move=5, axis=0):
     return data - np.expand_dims(background, axis)
 
 
-def subtract_slits_background(input_model: datamodels) -> datamodels:
+def subtract_slits_background(input_model: IFUImageModel) -> IFUImageModel:
     '''Subtract slit backgrounds depending detector and slits.
 
     Current codes work after global background subtraction,

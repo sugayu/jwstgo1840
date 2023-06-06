@@ -148,6 +148,10 @@ Please see an example usege in example/calib_nirspecifu.py.
 #+end_src
 
 * Release Notes
+** version 0.3.1
+- Raise errors when nrs2 is processed for inappropreate filters in AfterDetector1Pipeline
+- Fix type of datamodels
+
 ** version 0.3.0
 - Add objmask step to mask objects for 5 sigma clipping
 
