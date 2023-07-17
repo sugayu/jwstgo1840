@@ -1,11 +1,11 @@
 '''Utilities using dq flag
 '''
 import numpy as np
-from jwst import datamodels
+from jwst.datamodels import dqflags
 
 
 ##
-dqflag = datamodels.dqflags.pixel
+dqflag = dqflags.pixel
 
 
 def dqflagging(dq, mask, flag):
