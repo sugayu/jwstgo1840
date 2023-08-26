@@ -1,10 +1,12 @@
 '''Remove outlier
 '''
 from __future__ import annotations
+import warnings
 from dataclasses import dataclass, field
 import numpy as np
 from astropy.io import fits
 from astropy.stats import sigma_clip
+from astropy.utils.exceptions import AstropyUserWarning
 from jwst import datamodels
 from jwst.datamodels import IFUImageModel
 from .dqflag import dqflagging, is_dqflagged
@@ -22,13 +24,15 @@ def sigmaclip(data, dq, sigma=10):
     mask = dq_notuse | dq_outlier
     madata = np.ma.masked_array(data, mask)
 
-    sigma_clip_array = sigma_clip(
-        madata,  # / np.nanmedian(datamodel.data) - 1
-        sigma=sigma,
-        maxiters=None,
-        masked=True,
-        axis=0,  # Clipping along spatial direction (y-axis)
-    )  # normalized to avoid errors clipping for very large values??
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=AstropyUserWarning)
+        sigma_clip_array = sigma_clip(
+            madata,  # / np.nanmedian(datamodel.data) - 1
+            sigma=sigma,
+            maxiters=None,
+            masked=True,
+            axis=0,  # Clipping along spatial direction (y-axis)
+        )  # normalized to avoid errors clipping for very large values??
 
     # Update mask for sigma-clipped pixels; Don't update for originally OUTLIER (=object) pixels
     mask_new = (madata.mask == 0) & (sigma_clip_array.mask == 1)
@@ -51,7 +55,9 @@ def create_pixelmask(filenames, sigma=3, threshold=3):
     for data, dq in zip(list_data, list_dq):
         already_flagged = is_dqflagged(dq, 'DO_NOT_USE')
         data[already_flagged] = np.nan
-        mask_sigmaclip = sigma_clip(data, sigma=sigma, maxiters=None, masked=True)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=AstropyUserWarning)
+            mask_sigmaclip = sigma_clip(data, sigma=sigma, maxiters=None, masked=True)
         mask_count += mask_sigmaclip.mask
 
     mask = mask_count >= 3

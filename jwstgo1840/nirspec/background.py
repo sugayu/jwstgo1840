@@ -1,11 +1,13 @@
 '''Subtract background
 '''
 from __future__ import annotations
+import warnings
 from dataclasses import dataclass, field
 import numpy as np
 from scipy.interpolate import interp1d
 from astropy.io import fits
 from astropy.stats import sigma_clip
+from astropy.utils.exceptions import AstropyUserWarning
 from jwst.datamodels import IFUImageModel
 from gwcs import wcstools
 from .dqflag import is_dqflagged
@@ -32,9 +34,11 @@ def subtract_1fnoises_from_detector(data, dq, move=5, axis=0):
     data_mask[:100, :] = np.nan  # to remove lower edge
     data_mask[1950:, :] = np.nan  # to remove upper edge
 
-    data_clipped = sigma_clip(
-        data_mask, sigma=3, maxiters=None, masked=False, axis=axis
-    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=AstropyUserWarning)
+        data_clipped = sigma_clip(
+            data_mask, sigma=3, maxiters=None, masked=False, axis=axis
+        )
     data1d_ymed = np.nanmean(data_clipped, axis=axis)
     background = moving_average(data1d_ymed, 5)
     return data - np.expand_dims(background, axis)
@@ -105,9 +109,11 @@ def subtract_global_background(
     is_nomask = ~is_dqflagged(dq, 'OUTLIER')
     _data = data.copy()
     _data[~(is_ok | is_nomask)] = np.nan
-    is_not_clipped = ~sigma_clip(
-        _data, sigma=5, maxiters=None, masked=True, axis=0
-    ).mask
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=AstropyUserWarning)
+        is_not_clipped = ~sigma_clip(
+            _data, sigma=5, maxiters=None, masked=True, axis=0
+        ).mask
 
     radecw = wcs_calfits(input_model)
     wavelength = radecw[2][is_ok]
@@ -145,9 +151,11 @@ def subtract_bacground(data, dq, move=5, axis=0):
     '''
     data_mask = np.copy(data)
     data_mask[is_dqflagged(dq, 'DO_NOT_USE')] = np.nan
-    sigma_clip_array = sigma_clip(
-        data_mask, sigma=3, maxiters=None, masked=True, axis=0
-    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=AstropyUserWarning)
+        sigma_clip_array = sigma_clip(
+            data_mask, sigma=3, maxiters=None, masked=True, axis=0
+        )
     data_mask[sigma_clip_array.mask == 1] = np.nan
     data1d_ymed = np.nanmedian(data_mask, axis=axis)
     background = moving_average(data1d_ymed, 5)
