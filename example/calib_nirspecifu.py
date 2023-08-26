@@ -14,10 +14,8 @@ os.environ["CRDS_PATH"] = 'data/crds_cache'
 os.environ["CRDS_SERVER_URL"] = 'https://jwst-crds.stsci.edu'
 os.environ["CRDS_CONTEXT"] = 'jwst_1077.pmap'
 
-from jwst.pipeline import calwebb_detector1, Spec2Pipeline, Spec3Pipeline
+from jwst.pipeline import Detector1Pipeline, Spec2Pipeline, Spec3Pipeline
 from jwst import datamodels
-from jwst.associations import asn_from_list  # Tools for creating association files
-from jwst.associations.lib.rules_level3_base import DMS_Level3_Base
 
 from jwstgo1840.nirspec import (
     AfterDetector1Pipeline,
@@ -71,7 +69,7 @@ def main():
 def run_pipeline_detector1(fname_uncal, maximum_cores='None'):
     '''Run pipeline of Detector1.'''
     # Create an instance of the pipeline class
-    detector1 = calwebb_detector1.Detector1Pipeline()
+    detector1 = Detector1Pipeline()
 
     # Set some parameters that pertain to the entire pipeline
     detector1.output_dir = output_dir
@@ -116,7 +114,7 @@ def run_pipeline_detector1(fname_uncal, maximum_cores='None'):
 
     # Snowball corr
     detector1.jump.skip = False
-    detector1.jump.rejection_threshold = 3.0
+    detector1.jump.rejection_threshold = 4.0
     # detector1.jump.rejection_threshold = 4
     detector1.jump.expand_large_events = True
     # detector1.jump.min_jump_area = 8
@@ -127,7 +125,7 @@ def run_pipeline_detector1(fname_uncal, maximum_cores='None'):
     # detector1.jump.after_jump_flag_dn2 = 1000
     # detector1.jump.after_jump_flag_time2 = 3000
     # detector1.jump.sat_required_snowball=False
-    detector1.jump.min_jump_to_flag_neighbors = 2.0
+    detector1.jump.min_jump_to_flag_neighbors = 10.0
     detector1.jump.maximum_cores = maximum_cores
 
     # ramp_fit
