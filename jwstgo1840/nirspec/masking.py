@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Optional
 from dataclasses import dataclass, field
+from pathlib import Path
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -265,6 +266,37 @@ class ConfigMaskingObj:
     radii: Quantity | None = None
     waves: Quantity | None = None
     skip: bool = True
+
+    def check_welldefined(self) -> bool:
+        '''Check whether properties are correctly specified.'''
+        errtxt = 'In masking objects, objmask.{} is not defined.'
+        if not self.fname3d:
+            raise AttributeError(errtxt.format('fname3d'))
+        if self.positions is None:
+            raise AttributeError(errtxt.format('positions'))
+        if self.radii is None:
+            raise AttributeError(errtxt.format('radii'))
+        if self.waves is None:
+            raise AttributeError(errtxt.format('waves'))
+
+        if not Path(self.fname3d).exists():
+            raise FileNotFoundError(
+                f'In masking objects, datacube "{self.fname3d}" does not exits. Is product_name correct?'
+            )
+        if self.radii.shape != self.positions.shape:
+            raise ValueError(
+                'In masking objects, shapes of radii and positions are different: '
+                f'radii {self.radii.shape} but positions {self.positions.shape}.'
+            )
+        if not ((len(self.waves.shape) == 2) and self.waves.shape[1] == 2):
+            raise ValueError('In masking objects, shapes of waves must be (X, 2).')
+        if self.waves.shape[0] != self.positions.shape[0]:
+            raise ValueError(
+                'In masking objects, shapes of waves and positions are different: '
+                f'waves[0] {(self.radii.shape[0],)} but positions {self.positions.shape}.'
+            )
+
+        return True
 
 
 def main():

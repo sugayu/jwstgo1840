@@ -112,14 +112,8 @@ class AfterSpec2Pipeline:
             datamodel = masking_msa_failed_open(datamodel)
 
         # Mask objects
-        not_skip_objmask = (
-            (not self.objmask.skip)
-            and (self.objmask.fname3d != '')
-            and (self.objmask.positions is not None)
-            and (self.objmask.radii is not None)
-            and (self.objmask.waves is not None)
-        )
-        if not_skip_objmask:
+        if not self.objmask.skip:
+            self.objmask.check_welldefined()
             datamodel = masking_objects3D(
                 datamodel,
                 self.objmask.fname3d,
