@@ -23,6 +23,7 @@ from jwstgo1840.nirspec import (
     AfterDetector1Pipeline,
     AfterSpec2Pipeline,
     AfterSpec3Pipeline,
+    CreateAsnFile,
 )
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ def main():
     fnames = run_pipeline_after_spec2(fnames)
 
     # Spec3
-    run_pipeline_spec3(fnames)
+    run_pipeline_spec3(fnames, product_name='product_name')
 
 
 def run_pipeline_detector1(fname_uncal, maximum_cores='None'):
@@ -171,9 +172,9 @@ def run_pipeline_spec2(fname_rate):
     return run_output
 
 
-def run_pipeline_spec3(fname_cal, extract_1d_skip=True):
+def run_pipeline_spec3(fname_cal, product_name='product_name', extract_1d_skip=True):
     '''Run pipeline of Spec3.'''
-    fname_asn = CreateAsnFile(fname_cal).dump()
+    fname_asn = CreateAsnFile(fname_cal).dump(product_name)
     crds_config = Spec3Pipeline.get_config_from_reference(fname_asn)
     spec3 = Spec3Pipeline.from_config_section(crds_config)
 
@@ -203,41 +204,6 @@ def run_pipeline_spec3(fname_cal, extract_1d_skip=True):
     run_output = spec3.run(fname_asn)
     logger.info('Spec 3 completed.')
     return run_output
-
-
-class CreateAsnFile:
-    def __init__(self, fnames):
-        self.fnames = fnames
-        self.fname_asn = os.path.dirname(fnames[0]) + '/Spec3.json'
-        self.science = []
-        self.background = []
-        self.contain_science_background_files()
-
-    def contain_science_background_files(self):
-        for f in self.fnames:
-            model = datamodels.open(f)
-            is_background = model.meta.observation.bkgdtarg
-            if is_background:
-                path_x1d = Path(f.replace('cal.fits', 'x1d.fits'))
-                if path_x1d.exists():
-                    self.background.append(path_x1d.name)
-            else:
-                self.science.append(Path(f).name)
-
-    def dump(self):
-        asn = asn_from_list.asn_from_list(
-            self.science, rule=DMS_Level3_Base, product_name='product_name'
-        )
-        for bkg in self.background:
-            asn['products'][0]['members'].append(
-                {'expname': bkg, 'exptype': 'background'}
-            )
-
-        _, serialized = asn.dump()
-        with open(self.fname_asn, 'w') as f:
-            f.write(serialized)
-
-        return self.fname_asn
 
 
 def run_pipeline_after_detector1(fnames):

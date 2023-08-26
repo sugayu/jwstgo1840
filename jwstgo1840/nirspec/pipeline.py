@@ -1,6 +1,7 @@
 '''Pipelines
 '''
 from __future__ import annotations
+import os
 from pathlib import Path
 from jwst import datamodels
 from .background import (
@@ -22,6 +23,8 @@ from .masking import (
 from .outlier import sigmaclip, MaskOutliers, ConfigSigmaClip, ConfigMaskOutliers
 from .filtergratingflag import can_process_nrs2, ConfigCanProcessNRS2
 from astropy.io import fits
+from jwst.associations import asn_from_list
+from jwst.associations.lib.rules_level3_base import DMS_Level3_Base
 
 
 ##
@@ -172,3 +175,38 @@ class AfterSpec3Pipeline:
     def run(self, filename: str) -> str:
         '''Run pipeline.'''
         pass
+
+
+class CreateAsnFile:
+    def __init__(self, fnames: list[str]):
+        self.fnames = fnames
+        self.fname_asn = os.path.dirname(fnames[0]) + '/Spec3.json'
+        self.science: list[str] = []
+        self.background: list[str] = []
+        self.contain_science_background_files()
+
+    def contain_science_background_files(self):
+        for f in self.fnames:
+            model = datamodels.open(f)
+            is_background = model.meta.observation.bkgdtarg
+            if is_background:
+                path_x1d = Path(f.replace('cal.fits', 'x1d.fits'))
+                if path_x1d.exists():
+                    self.background.append(path_x1d.name)
+            else:
+                self.science.append(Path(f).name)
+
+    def dump(self, product_name: str = 'product_name'):
+        asn = asn_from_list.asn_from_list(
+            self.science, rule=DMS_Level3_Base, product_name=product_name
+        )
+        for bkg in self.background:
+            asn['products'][0]['members'].append(
+                {'expname': bkg, 'exptype': 'background'}
+            )
+
+        _, serialized = asn.dump()
+        with open(self.fname_asn, 'w') as f:
+            f.write(serialized)
+
+        return self.fname_asn
