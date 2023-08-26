@@ -148,8 +148,16 @@ Please see an example usege in example/calib_nirspecifu.py.
 #+end_src
 
 * Release Notes
+** version 0.3.3
+- Apply object masks when computing global background
+- Enable to make a name of the final 3d data cube.
+  Please use ~product_name~ keyword in ~CreateAsnFile.dump()~ (see ~example/calib_nirspecifu.py~)
+- Minor changes:
+  - Raise exceptions when object masks are not well defined as we assumed
+  - Turn off warnings for sigma_clip when data includes NaN
+
 ** version 0.3.2
-- Fix the way to import dqflags by applying current jwst pipeline implementation.
+- Fix the way to import dqflags by applying current jwst pipeline implementation
 
 ** version 0.3.1
 - Raise errors when nrs2 is processed for inappropreate filters in AfterDetector1Pipeline
