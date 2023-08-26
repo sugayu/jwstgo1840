@@ -274,6 +274,10 @@ def run_pipeline_after_spec2(fnames, skip_sigmaclip=False, skip_background=False
     afterspec2.slits_background.skip = True
     afterspec2.objmask.skip = False  # default = True
 
+    # save_results
+    afterspec2.sigmaclip.save_results = False
+    afterspec2.global_background.save_results = False
+
     # parameters
     afterspec2.sigmaclip.sigma = 5
 
