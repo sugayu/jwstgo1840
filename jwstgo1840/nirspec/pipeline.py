@@ -174,7 +174,7 @@ class AfterSpec3Pipeline:
 class CreateAsnFile:
     def __init__(self, fnames: list[str]):
         self.fnames = fnames
-        self.fname_asn = os.path.dirname(fnames[0]) + '/Spec3.json'
+        self.fname_asn = Path(fnames[0]).parent / 'Spec3.json'
         self.science: list[str] = []
         self.background: list[str] = []
         self.contain_science_background_files()
@@ -200,7 +200,7 @@ class CreateAsnFile:
             )
 
         _, serialized = asn.dump()
-        with open(self.fname_asn, 'w') as f:
+        with self.fname_asn.open('w') as f:
             f.write(serialized)
 
         return self.fname_asn
