@@ -148,6 +148,9 @@ Please see an example usege in example/calib_nirspecifu.py.
 #+end_src
 
 * Release Notes
+** version 0.3.4
+- Fix bugs (Detector1 params in example, output directory, 1/f noise subt. w/o masking outliers)
+
 ** version 0.3.3
 - Apply object masks when computing global background
 - Enable to make a name of the final 3d data cube.

@@ -29,7 +29,10 @@ def subtract_1fnoises_from_detector(data, dq, move=5, axis=0):
     idx_DoNotUse2 = dq == 5  # DO_NOT_USE & JUMP_DET
     idx_detector = idx_DoNotUse | idx_DoNotUse2
 
-    data_mask[~idx_detector] = np.nan
+    if np.sum(idx_detector) > 1e5:  # HACK: 1e5 is arbitrary
+        # This threshold checks whether the slit positions are
+        # already known. If not, use almost all pixels.
+        data_mask[~idx_detector] = np.nan
     data_mask[900:1120, :] = np.nan  # to remove fixed slits
     data_mask[:100, :] = np.nan  # to remove lower edge
     data_mask[1950:, :] = np.nan  # to remove upper edge
@@ -41,6 +44,7 @@ def subtract_1fnoises_from_detector(data, dq, move=5, axis=0):
         )
     data1d_ymed = np.nanmean(data_clipped, axis=axis)
     background = moving_average(data1d_ymed, 5)
+
     return data - np.expand_dims(background, axis)
 
 
