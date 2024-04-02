@@ -151,6 +151,15 @@ def main():
         return fsave
 
     # ==============================
+    # This example is to create pixel masks.
+    #
+    # FAQ
+    # Q1. Why using both rate and cal files?
+    # A1.
+    #   (1) rate file: because it would be better to find hot pixels as early
+    #       in the pipeline as possible.
+    #   (2) cal file: because there are some pixels that cannot be
+    #       flux-calibrated in cal files.
     fnames_nrs1 = [
         'calib/calib_bk/jw01840017001_02101_00001_nrs1_1_rate.fits',
         'calib/calib_bk/jw01840017001_02101_00002_nrs1_1_rate.fits',
