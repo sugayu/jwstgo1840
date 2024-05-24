@@ -2,7 +2,7 @@
 '''
 from __future__ import annotations
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import numpy as np
 from scipy.interpolate import interp1d
 from astropy.io import fits
@@ -86,7 +86,7 @@ def subtract_slits_background(input_model: IFUImageModel) -> IFUImageModel:
 
 
 def subtract_global_background(
-    input_model: IFUImageModel,
+    input_model: IFUImageModel, move_pixels: int = 50001
 ) -> tuple[IFUImageModel, np.ndarray]:
     '''Subtract global background depending on wavelength.
 
@@ -110,39 +110,44 @@ def subtract_global_background(
     data = input_model.data
     dq = input_model.dq
     is_ok = ~is_dqflagged(dq, 'DO_NOT_USE')
-    is_nomask = ~is_dqflagged(dq, 'OUTLIER')
+    is_not_masked = ~is_dqflagged(dq, 'OUTLIER')
     _data = data.copy()
-    _data[~(is_ok | is_nomask)] = np.nan
+    _data[~(is_ok | is_not_masked)] = np.nan
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=AstropyUserWarning)
         is_not_clipped = ~sigma_clip(
             _data, sigma=5, maxiters=None, masked=True, axis=0
         ).mask
-
+    idx_sky = is_ok & is_not_masked & is_not_clipped
     radecw = wcs_calfits(input_model)
-    wavelength = radecw[2][is_ok]
-    wavelength_masked = radecw[2][is_ok & is_nomask & is_not_clipped]
-    data_masked = data[is_ok & is_nomask & is_not_clipped]
 
-    # compute global background
-    idx = np.argsort(wavelength_masked.ravel())
-    flux1d = data_masked[idx]
-    global_background_1d = moving_average(flux1d, 50001)
-
-    # interpolation
-    idx_effective = global_background_1d != 0
-    effective_global_background = global_background_1d[idx_effective]
-    wave1d = wavelength_masked[idx][idx_effective]
-    f = interp1d(
-        wave1d, effective_global_background, kind='nearest', fill_value='extrapolate'
-    )
-
-    # background_2d including masked pixels
     global_background_2d = np.zeros_like(data)
-    background_ok = global_background_2d[is_ok]
-    idx2 = np.argsort(wavelength.ravel())
-    background_ok[idx2] = f(wavelength[idx2])
-    global_background_2d[is_ok] = background_ok
+    for idx_amp in get_amplifier_patterns():  # independent bkgsub for 4 amplifiers
+        wavelength = radecw[2][is_ok & idx_amp]
+        wavelength_sky = radecw[2][idx_sky & idx_amp]
+        data_sky = data[idx_sky & idx_amp]
+
+        # compute global background
+        order_skypixels = np.argsort(wavelength_sky)
+        flux1d = data_sky[order_skypixels]
+        global_background_1d = moving_average(flux1d, move_pixels)
+
+        # interpolation function
+        idx_effective = global_background_1d != 0
+        effective_global_background = global_background_1d[idx_effective]
+        wave1d = wavelength_sky[order_skypixels][idx_effective]
+        f = interp1d(
+            wave1d,
+            effective_global_background,
+            kind='nearest',
+            fill_value='extrapolate',
+        )
+
+        # background_2d including masked pixels
+        background_ok = global_background_2d[is_ok]
+        order_fullpixels = np.argsort(wavelength)
+        background_ok[order_fullpixels] = f(wavelength[order_fullpixels])
+        global_background_2d[is_ok] = background_ok
 
     data -= global_background_2d
     return input_model, global_background_2d
@@ -175,6 +180,23 @@ def moving_average(spec1d, n=5):
     return move_avg
 
 
+def get_amplifier_patterns() -> np.ndarray:
+    '''Get bool array indicating pixels read by a amplifier.
+
+    The IRS2 readout pattern of NIRSpec IFU uses four amplifiers when reading
+    pixel values. This function iterately returns pixel positions that are read
+    by an amplifier.
+    '''
+    n_amp = 4
+    n_pix = 2024
+
+    idx_amplifier = np.zeros((n_pix, n_pix)).reshape(n_amp, -1, n_pix).astype(bool)
+    for i in range(n_amp):
+        idx_amp = idx_amplifier.copy()
+        idx_amp[i] = True
+        yield idx_amp.reshape(-1, 2024)
+
+
 @dataclass
 class ConfigSubtractBackground:
     skip: bool = False
@@ -185,6 +207,7 @@ class ConfigSubtractBackground:
 class ConfigSubtractGlobalBackground:
     skip: bool = False
     save_results: bool = False
+    move_pixels: int = 50001
 
 
 @dataclass
