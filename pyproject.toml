@@ -10,5 +10,6 @@ module = [
        'gwcs.*',
        'jwst.*',
        'photutils.*',
+       'importlib.*'
 ]
 ignore_missing_imports = true

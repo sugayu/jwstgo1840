@@ -1,8 +1,10 @@
 '''Remove outlier
 '''
+
 from __future__ import annotations
 import warnings
 from dataclasses import dataclass, field
+from importlib.resources_abc import Traversable
 import numpy as np
 from astropy.io import fits
 from astropy.stats import sigma_clip
@@ -81,23 +83,35 @@ def clip_raws(input_model: IFUImageModel, raws: list[int]) -> IFUImageModel:
 class MaskOutliers:
     '''Class to mask outliers based on mask.'''
 
-    def __init__(self, fnames: list[str]) -> None:
+    def __init__(self, fnames: list[Traversable]) -> None:
         self.fname_nrs1 = fnames[0]
         self.fname_nrs2 = fnames[1]
-        self.mask_nrs1 = fits.getdata(fnames[0]).astype(bool)
-        self.mask_nrs2 = fits.getdata(fnames[1]).astype(bool)
+        self._mask_nrs1: None | np.ndarray = None
+        self._mask_nrs2: None | np.ndarray = None
 
     def flag_pixels(self, dq: np.ndarray, filename: str) -> np.ndarray:
         '''Mask pixels based on mask file.'''
         if 'nrs1' in filename:
-            mask = np.copy(self.mask_nrs1)
+            mask = self.mask_nrs1
         elif 'nrs2' in filename:
-            mask = np.copy(self.mask_nrs2)
+            mask = self.mask_nrs2
         else:
             raise ValueError('Could not find the detector from the filename.')
 
         dq_new = dqflagging(dq, mask, 'DO_NOT_USE')
         return dq_new
+
+    @property
+    def mask_nrs1(self) -> np.ndarray:
+        if self._mask_nrs1 is None:
+            self._mask_nrs1 = fits.getdata(self.fname_nrs1).astype(bool)
+        return self._mask_nrs1
+
+    @property
+    def mask_nrs2(self) -> np.ndarray:
+        if self._mask_nrs2 is None:
+            self._mask_nrs2 = fits.getdata(self.fname_nrs2).astype(bool)
+        return self._mask_nrs2
 
 
 @dataclass
@@ -110,7 +124,7 @@ class ConfigSigmaClip:
 @dataclass
 class ConfigMaskOutliers:
     skip: bool = False
-    fnames_mask: list[str] = field(default_factory=list)
+    fnames_mask: list[Traversable] = field(default_factory=list)
 
 
 def main():
