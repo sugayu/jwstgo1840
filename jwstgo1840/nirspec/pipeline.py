@@ -1,9 +1,16 @@
 '''Pipelines
 '''
+
 from __future__ import annotations
-import os
+from importlib import resources
+from importlib.abc import Traversable
 from pathlib import Path
+from astropy.io import fits
+
+from jwst.associations import asn_from_list
+from jwst.associations.lib.rules_level3_base import DMS_Level3_Base
 from jwst import datamodels
+
 from .background import (
     subtract_1fnoises_from_detector,
     subtract_global_background,
@@ -22,9 +29,6 @@ from .masking import (
 )
 from .outlier import sigmaclip, MaskOutliers, ConfigSigmaClip, ConfigMaskOutliers
 from .filtergratingflag import can_process_nrs2, ConfigCanProcessNRS2
-from astropy.io import fits
-from jwst.associations import asn_from_list
-from jwst.associations.lib.rules_level3_base import DMS_Level3_Base
 
 
 ##
@@ -50,15 +54,14 @@ class AfterDetector1Pipeline:
                 grating = datamodel.meta.instrument.grating
                 filter_ = datamodel.meta.instrument.filter
                 raise ValueError(
-                    f'In this setup of {grating}/{filter_}, the spectra do not extend to nrs2. '
-                    f'Please remove nrs2 from the input data set.'
+                    f'In this setup of {grating}/{filter_},'
+                    'the spectra do not extend to nrs2. '
+                    'Please remove nrs2 from the input data set.'
                 )
 
         if not self.maskoutlier.skip:
             if self.maskoutlier.fnames_mask == []:
-                fnames_data = ['pixelmask_nrs1.fits', 'pixelmask_nrs2.fits']
-                path_data = Path(__file__).resolve().parent / 'data/'
-                self.maskoutlier.fnames_mask = [str(path_data / f) for f in fnames_data]
+                self.maskoutlier.fnames_mask = self.find_pixelmaskfiles(datamodel)
             maskoutlier = MaskOutliers(self.maskoutlier.fnames_mask)
             datamodel.dq = maskoutlier.flag_pixels(datamodel.dq, filename)
 
@@ -88,6 +91,21 @@ class AfterDetector1Pipeline:
         if not isinstance(output_dir, Path):
             path = Path(output_dir)
         return path
+
+    @staticmethod
+    def find_pixelmaskfiles(datamodel: datamodels.IFUImageModel) -> list[Traversable]:
+        '''Find filenames of pixel masks according to fileters and gratings.
+
+        This function is used to find masks for MaskOutliers.
+        '''
+        grating = datamodel.meta.instrument.grating
+        filter_ = datamodel.meta.instrument.filter
+        root = resources.files('jwst1840.nirspec')
+        fnames_mask = [
+            f'data/pixelmask_{filter_}{grating}_nrs1.fits',
+            f'data/pixelmask_{filter_}{grating}_nrs2.fits',
+        ]
+        return [root.joinpath(f) for f in fnames_mask]
 
 
 class AfterSpec2Pipeline:
@@ -166,7 +184,7 @@ class AfterSpec3Pipeline:
     def __init__(self) -> None:
         pass
 
-    def run(self, filename: str) -> str:
+    def run(self, filename: str) -> None:
         '''Run pipeline.'''
         pass
 

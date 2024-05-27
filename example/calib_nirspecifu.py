@@ -188,8 +188,9 @@ def run_pipeline_spec3(fname_cal, product_name='product_name', extract_1d_skip=T
     )
 
     # Obtain smaller pixscale
-    spec3.cube_build.scale1 = 0.05
-    spec3.cube_build.scale2 = 0.05
+    # spec3.cube_build.scale1 = 0.05  # deprecated since jwst 1.12.0
+    # spec3.cube_build.scale2 = 0.05  # deprecated since jwst 1.12.0
+    spec3.cube_build.scalexy = 0.05
 
     spec3.assign_mtwcs.skip = False  # modify the wcc considering a moving target over the FoV at each exposure
     # spec3.master_background.skip = True
