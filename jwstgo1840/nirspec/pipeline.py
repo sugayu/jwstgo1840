@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 from importlib import resources
-from importlib.resources_abc import Traversable
+from importlib.abc import Traversable
 from pathlib import Path
 from astropy.io import fits
 

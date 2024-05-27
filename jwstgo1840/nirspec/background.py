@@ -1,5 +1,6 @@
 '''Subtract background
 '''
+
 from __future__ import annotations
 import warnings
 from dataclasses import dataclass
@@ -188,13 +189,13 @@ def get_amplifier_patterns() -> np.ndarray:
     by an amplifier.
     '''
     n_amp = 4
-    n_pix = 2024
+    n_pix = 2048
 
     idx_amplifier = np.zeros((n_pix, n_pix)).reshape(n_amp, -1, n_pix).astype(bool)
     for i in range(n_amp):
         idx_amp = idx_amplifier.copy()
         idx_amp[i] = True
-        yield idx_amp.reshape(-1, 2024)
+        yield idx_amp.reshape(-1, n_pix)
 
 
 @dataclass

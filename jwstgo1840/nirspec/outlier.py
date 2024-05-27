@@ -4,7 +4,7 @@
 from __future__ import annotations
 import warnings
 from dataclasses import dataclass, field
-from importlib.resources_abc import Traversable
+from importlib.abc import Traversable
 import numpy as np
 from astropy.io import fits
 from astropy.stats import sigma_clip
