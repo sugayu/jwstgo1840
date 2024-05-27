@@ -158,6 +158,11 @@ Please see an example usege in example/calib_nirspecifu.py.
 #+end_src
 
 * Release Notes
+** version 0.4.0
+- Add hot pixel masks for F395M/F290LP.
+- Change global background subtraction according to patterns made by the four amplifiers.
+- Small fix of jwst parameter (~scale1~ -> ~scalexy~) in the example.
+
 ** version 0.3.4
 - Fix bugs (Detector1 params in example, output directory, 1/f noise subt. w/o masking outliers)
 
