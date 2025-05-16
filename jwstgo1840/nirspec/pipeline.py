@@ -153,7 +153,9 @@ class AfterSpec2Pipeline:
             datamodel, _ = masking_slitedges(datamodel)
 
         if not self.global_background.skip:
-            datamodel, bk2d = subtract_global_background(datamodel)
+            datamodel, bk2d = subtract_global_background(
+                datamodel, move_pixels=self.global_background.move_pixels
+            )
             if self.global_background.save_results:
                 fsave = path.name.replace('_1_cal', '_2_globalbkg')
                 output_dir = self.path_output_dir(path)
