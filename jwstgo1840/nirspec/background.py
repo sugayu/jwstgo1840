@@ -145,10 +145,10 @@ def subtract_global_background(
         )
 
         # background_2d including masked pixels
-        background_ok = global_background_2d[is_ok]
+        background_ok = global_background_2d[is_ok & idx_amp]
         order_fullpixels = np.argsort(wavelength)
         background_ok[order_fullpixels] = f(wavelength[order_fullpixels])
-        global_background_2d[is_ok] = background_ok
+        global_background_2d[is_ok & idx_amp] = background_ok
 
     data -= global_background_2d
     return input_model, global_background_2d
