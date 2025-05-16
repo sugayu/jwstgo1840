@@ -100,7 +100,7 @@ class AfterDetector1Pipeline:
         '''
         grating = datamodel.meta.instrument.grating
         filter_ = datamodel.meta.instrument.filter
-        root = resources.files('jwst1840.nirspec')
+        root = resources.files('jwstgo1840.nirspec')
         fnames_mask = [
             f'data/pixelmask_{filter_}{grating}_nrs1.fits',
             f'data/pixelmask_{filter_}{grating}_nrs2.fits',
