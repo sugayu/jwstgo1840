@@ -62,7 +62,7 @@ def create_pixelmask(filenames, sigma=3, threshold=3):
             mask_sigmaclip = sigma_clip(data, sigma=sigma, maxiters=None, masked=True)
         mask_count += mask_sigmaclip.mask
 
-    mask = mask_count >= 3
+    mask = mask_count >= threshold
     return mask
 
 
