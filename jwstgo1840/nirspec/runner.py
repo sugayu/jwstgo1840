@@ -1,0 +1,315 @@
+'''Scripts of runner of each pipeline.
+'''
+
+import logging
+from pathlib import Path
+from concurrent.futures import ProcessPoolExecutor
+from astropy.coordinates import SkyCoord
+import astropy.units as u
+
+from jwst.pipeline import Detector1Pipeline, Spec2Pipeline, Spec3Pipeline
+from jwst import datamodels
+from jwstgo1840.nirspec import (
+    AfterDetector1Pipeline,
+    AfterSpec2Pipeline,
+    AfterSpec3Pipeline,
+    CreateAsnFile,
+)
+
+logger = logging.getLogger(__name__)
+
+
+__all__ = ['JWSTPipelineRunner']
+
+
+##
+class JWSTPipelineRunner:
+    '''Run JWST pipelines.'''
+
+    def __init__(
+        self, product_name: str, output_dir: str, without_custom: bool = False
+    ) -> None:
+        self.product_name = product_name
+        if isinstance(output_dir, Path):
+            output_dir = str(output_dir)
+        self.output_dir = output_dir
+        self.detector1 = Detector1Pipeline()
+        self.spec2 = Spec2Pipeline()
+        self.afterdet1 = AfterDetector1Pipeline()
+        self.afterspec2 = AfterSpec2Pipeline()
+
+        if not without_custom:
+            self.custom_detector1(self.detector1)
+            self.custom_spec2(self.spec2)
+            self.custom_afterdet1(self.afterdet1)
+            self.custom_afterspec2(self.afterspec2)
+
+    def run_detector1(
+        self,
+        fnames: list[str | Path],
+        maximum_cores='None',
+    ) -> list[Path]:
+        '''Run pipeline of Detector1.'''
+        detector1 = self.detector1
+        detector1.jump.maximum_cores = maximum_cores
+        detector1.ramp_fit.maximum_cores = maximum_cores
+
+        # Call the run() method
+        fnames_output = []
+        logger.info('Running Detector 1...')
+        for fname in fnames:
+            run_output = detector1.run(fname)
+            fnames_output.append(Path(self.detector1.make_output_path()))
+        logger.info('Detector 1 completed.')
+
+        return fnames_output
+
+    def custom_detector1(self, detector1: Detector1Pipeline) -> None:
+        '''Custom paramters of Detector1'''
+        # Set some parameters that pertain to the entire pipeline
+        detector1.output_dir = self.output_dir
+        detector1.save_results = True
+
+        # # Set some parameters that pertain to some of the individual steps
+        # detector1.refpix.use_side_ref_pixels = True
+
+        # # Specify the name of the trapsfilled file, which contains the state of
+        # # the charge traps at the end of the preceding exposure
+        # detector1.persistence.input_trapsfilled = persist_file
+
+        # Whether or not certain steps should be skipped
+        detector1.group_scale.skip = True
+        detector1.dq_init.skip = False
+        detector1.saturation.skip = False
+        # detector1.firstframe.skip = False  # MIRI
+        # detector1.lastframe.skip = False  # MIRI
+        # detector1.ipc.skip = False  # ?
+        detector1.linearity.skip = False
+        # detector1.rscd.skip = False  # MIRI
+        detector1.dark_current.skip = False
+        detector1.ramp_fit.skip = False
+        detector1.gain_scale.skip = False
+
+        # save_results
+        detector1.group_scale.save_results = False
+        detector1.dq_init.save_results = False
+        detector1.saturation.save_results = False
+        detector1.superbias.save_results = False
+        detector1.refpix.save_results = False
+        # detector1.firstframe.save_results = False  # MIRI
+        # detector1.lastframe.save_results = False  # MIRI
+        # detector1.reset.save_results = False  # MIRI
+        detector1.linearity.save_results = False
+        # detector1.rscd.save_results = False  # MIRI
+        detector1.persistence.save_results = False
+        detector1.dark_current.save_results = False
+        detector1.jump.save_results = False
+        detector1.ramp_fit.save_results = False
+        detector1.gain_scale.save_results = False
+
+        # Snowball corr
+        detector1.jump.skip = False
+        detector1.jump.rejection_threshold = 4.0  # 3.0
+        # detector1.jump.rejection_threshold = 4
+        detector1.jump.expand_large_events = True
+        # detector1.jump.min_jump_area = 8
+        detector1.jump.use_ellipses = False
+        # detector1.jump.expand_factor = 3
+        # detector1.jump.after_jump_flag_dn1 = 10
+        # detector1.jump.after_jump_flag_time1 = 20
+        # detector1.jump.after_jump_flag_dn2 = 1000
+        # detector1.jump.after_jump_flag_time2 = 3000
+        # detector1.jump.sat_required_snowball=False
+        detector1.jump.min_jump_to_flag_neighbors = 10.0  # 2.0
+
+    def run_spec2(
+        self,
+        fnames: list[str | Path],
+        maximum_cores: int = 1,
+    ) -> list[Path]:
+        '''Run pipeline of Spec2.'''
+        logger.info('Running Spec 2...')
+
+        if maximum_cores == 1:
+            fnames_output = [self._run_spec2(fname) for fname in fnames]
+
+        elif maximum_cores > 1:
+            with ProcessPoolExecutor(maximum_cores) as exe:
+                fnames_output = list(exe.map(self._run_spec2, fnames))
+
+        logger.info('Spec 2 completed.')
+        return fnames_output
+
+    def _run_spec2(self, fname: str | Path) -> Path:
+        '''Helper to run pipeline of Spec2.'''
+        # run_output = spec2(asn_file)
+        run_output = self.spec2.run(fname)
+        fname_output = self.spec2.make_output_path()
+        return Path(fname_output)
+
+    def custom_spec2(self, spec2: Spec2Pipeline) -> None:
+        '''Custom paramters of Detector1'''
+        spec2.save_results = True
+        spec2.output_dir = self.output_dir
+        # skip the flat field correction, since the simulations do not include
+        # a full treatment of the throughput spec2.flat_field.skip = True
+
+        # Whether or not certain steps should be skipped
+        spec2.assign_wcs.skip = False
+        spec2.bkg_subtract.skip = True
+        # spec2.imprint_subtract.skip = False
+        # spec2.msaflagopen.skip=False
+        spec2.flat_field.skip = False
+        spec2.srctype.skip = False
+        spec2.photom.skip = False
+        spec2.cube_build.skip = False
+        spec2.extract_1d.skip = True
+
+        spec2.cube_build.weighting = 'drizzle'  # 'emsm' or 'drizzle'
+        spec2.cube_build.coord_system = (
+            'skyalign'  # 'ifualign', 'skyalign', or 'internal_cal'
+        )
+        spec2.srctype.source_type = 'EXTENDED'
+
+    def prepare_spec3(
+        self,
+        fnames_cal: list[str | Path],
+        firstrun: bool,
+    ) -> None:
+        '''Run pipeline of Spec3.'''
+        if firstrun:
+            productname = self.product_name + '_1strun'
+        else:
+            productname = self.product_name
+        self.fname_asn = CreateAsnFile(fnames_cal).dump(self.product_name)
+        crds_config = Spec3Pipeline.get_config_from_reference(self.fname_asn)
+        self.spec3 = Spec3Pipeline.from_config_section(crds_config)
+        self.custom_spec3(self.spec3)
+
+    def run_spec3(self, fnames_cal: list[str | Path]) -> str:
+        '''Run pipeline of Spec3.'''
+        spec3 = self.spec3
+
+        logger.info('Running Spec 3...')
+        # result = spec3(asn_file)
+        run_output = spec3.run(self.fname_asn)
+        logger.info('Spec 3 completed.')
+        fname_output = self.spec3.make_output_path()
+
+        return fname_output
+
+    def custom_spec3(self, spec3: Spec3Pipeline):
+        '''Custom parameters of Spec3.'''
+        spec3.save_results = True
+        spec3.output_dir = self.output_dir
+        # # skip this step for now, because the simulations do not include outliers
+        # spec3.outlier_detection.skip = True
+
+        # Cube building configuration
+        spec3.cube_build.weighting = 'drizzle'  # 'emsm' or 'drizzle'
+        spec3.cube_build.coord_system = (
+            'skyalign'  # 'ifualign', 'skyalign', or 'internal_cal'
+        )
+
+        # Obtain smaller pixscale
+        spec3.cube_build.scale1 = 0.05
+        spec3.cube_build.scale2 = 0.05
+
+        spec3.assign_mtwcs.skip = False  # modify the wcc considering a moving target over the FoV at each exposure
+        # spec3.master_background.skip = True
+        spec3.outlier_detection.skip = True
+        spec3.cube_build.skip = False
+        spec3.extract_1d.skip = False
+
+    def run_after_detector1(self, fnames: list[Path | str]) -> list[Path]:
+        '''Original pipeline for a stage between detector1 and spec2'''
+        logger.info('Running After_Detector1...')
+        return [self.afterdet1.run(f) for f in fnames]
+
+    def custom_afterdet1(self, afterdet1: AfterDetector1Pipeline) -> None:
+        '''Custom parameters of AfterDetector1Pipeline.'''
+        afterdet1.output_dir = self.output_dir
+
+        # is_skip
+        afterdet1.maskoutlier.skip = True
+        afterdet1.subtract_1fnoise.skip = False
+        afterdet1.sigmaclip.skip = True
+
+        # parameters
+        # afterdet1.maskoutlier.fnames_mask = files_maskoutlier
+        afterdet1.subtract_1fnoise.move_pixels = 5
+        afterdet1.sigmaclip.sigma = 10
+
+    def run_after_spec2(self, fnames: list[Path | str]) -> list[Path]:
+        '''Original pipeline for a stage between spec2 and spec3'''
+        logger.info('Running After_Spec2...')
+        return [self.afterspec2.run(f) for f in fnames]
+
+    def custom_afterspec2(self, afterspec2: AfterSpec2Pipeline) -> None:
+        '''Custom parameters of AfterSpec2Pipeline.'''
+        afterspec2.output_dir = self.output_dir
+
+        # is_skip
+        afterspec2.failed_slit_open.skip = False
+        afterspec2.sigmaclip.skip = False
+        afterspec2.slitedges.skip = False
+        afterspec2.global_background.skip = False
+        afterspec2.slits_background.skip = True
+        afterspec2.objmask.skip = False
+
+        # save_results
+        afterspec2.sigmaclip.save_results = False
+        afterspec2.global_background.save_results = False
+
+        # parameters
+        afterspec2.sigmaclip.sigma = 5
+
+    def prepare_afterspec2_1strun(self) -> None:
+        '''Custom parameters of AfterSpec2Pipeline for the 1st run.'''
+        afterspec2 = self.afterspec2
+
+        # is_skip
+        afterspec2.global_background.skip = True
+        afterspec2.objmask.skip = True
+
+    def prepare_afterspec2_2ndrun(self) -> None:
+        '''Custom parameters of AfterSpec2Pipeline for the 1st run.'''
+        afterspec2 = self.afterspec2
+
+        # is_skip
+        afterspec2.global_background.skip = False
+        afterspec2.objmask.skip = False
+
+        afterspec2.set_suffix(index=3)
+
+    def set_mask(self, fname3d: str, mask: list[Aperture3D]) -> None:
+        afterspec2 = self.afterspec2
+        afterspec2.objmask.skip = False
+
+        # Reference 3D cube; use one before WCS fine tuning
+        afterspec2.objmask.fname3d = fname3d
+
+        # Set object mask if needed
+        if not afterspec2.objmask.skip:
+            # Reference 3D cube; use one before WCS fine tuning
+            afterspec2.objmask.fname3d = (
+                self.output_dir + 'SXDF-NB1006-2_g395m-f290lp_s3d_1strun.fits'
+            )
+            # Set object positions / radii / wavelengths for mask
+            afterspec2.objmask.positions = SkyCoord(
+                [
+                    ('02h18m56.5321s', '-05d19m58.823s'),  # [OIII]5007
+                    ('02h18m56.5321s', '-05d19m58.823s'),  # [OIII]4959
+                    ('02h18m56.5321s', '-05d19m58.823s'),  # Hb
+                ]
+            )
+            afterspec2.objmask.radii = [
+                0.35,
+                0.30,
+                0.25,
+            ] * u.arcsec
+            afterspec2.objmask.waves = [
+                [4.108, 4.116],
+                [4.071, 4.076],
+                [3.990, 3.995],
+            ] * u.um

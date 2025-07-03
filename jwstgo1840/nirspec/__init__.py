@@ -1,5 +1,6 @@
 '''NIRSpec pipeline
 '''
+
 from .background import subtract_bacground
 from .masking import masking_slitedges
 from .outlier import sigmaclip, MaskOutliers, create_pixelmask
@@ -9,6 +10,7 @@ from .pipeline import (
     AfterSpec3Pipeline,
     CreateAsnFile,
 )
+from .runner import JWSTPipelineRunner
 
 __all__ = [
     'subtract_bacground',
@@ -20,4 +22,5 @@ __all__ = [
     'AfterSpec2Pipeline',
     'AfterSpec3Pipeline',
     'CreateAsnFile',
+    'JWSTPipelineRunner',
 ]

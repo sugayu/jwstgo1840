@@ -43,7 +43,7 @@ class AfterDetector1Pipeline:
         self.subtract_1fnoise = ConfigSubtractBackground()
         self.check_process_nrs2 = ConfigCanProcessNRS2()
 
-    def run(self, filename: str) -> str:
+    def run(self, filename: str | Path) -> Path:
         '''Run pipeline.'''
         datamodel = datamodels.open(filename)
 
@@ -80,7 +80,7 @@ class AfterDetector1Pipeline:
         output_dir = self.path_output_dir(path)
         datamodel.save(output_dir / fsave)
 
-        return str(output_dir / fsave)
+        return output_dir / fsave
 
     def path_output_dir(self, fname: Path) -> Path:
         output_dir: Path | str
@@ -111,6 +111,7 @@ class AfterDetector1Pipeline:
 class AfterSpec2Pipeline:
     '''Pipeline to run after Spec2Pipeline.'''
 
+    suffix = '_2_cal'
     output_dir: Path | str | None = None
 
     def __init__(self) -> None:
@@ -120,8 +121,9 @@ class AfterSpec2Pipeline:
         self.global_background = ConfigSubtractGlobalBackground()
         self.slits_background = ConfigSubtractSlitsBackground()
         self.objmask = ConfigMaskingObj()
+        self.suffix = self.suffix
 
-    def run(self, filename: str) -> str:
+    def run(self, filename: str | Path) -> Path:
         '''Run pipeline.'''
         datamodel = datamodels.open(filename)
         path = Path(filename)
@@ -167,7 +169,7 @@ class AfterSpec2Pipeline:
         fsave = path.name.replace('_1_cal', '_2_cal')
         output_dir = self.path_output_dir(path)
         datamodel.save(output_dir / fsave)
-        return str(output_dir / fsave)
+        return output_dir / fsave
 
     def path_output_dir(self, fname: Path) -> Path:
         output_dir: Path | str
@@ -178,6 +180,10 @@ class AfterSpec2Pipeline:
         if not isinstance(output_dir, Path):
             path = Path(output_dir)
         return path
+
+    def set_suffix(self, index: int) -> None:
+        '''Set suffix for different runs.'''
+        self.suffix = self.suffix.replace('2', str(index))
 
 
 class AfterSpec3Pipeline:
@@ -192,7 +198,7 @@ class AfterSpec3Pipeline:
 
 
 class CreateAsnFile:
-    def __init__(self, fnames: list[str]):
+    def __init__(self, fnames: list[str | Path]):
         self.fnames = fnames
         self.fname_asn = Path(fnames[0]).parent / 'Spec3.json'
         self.science: list[str] = []
