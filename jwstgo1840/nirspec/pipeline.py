@@ -24,7 +24,7 @@ from .masking import (
     masking_msa_failed_open,
     ConfigMaskingSlitedge,
     ConfigMaskingFailedSlitOpen,
-    ConfigMaskingObj,
+    ConfigMaskingObjects,
     masking_objects3D,
 )
 from .outlier import sigmaclip, MaskOutliers, ConfigSigmaClip, ConfigMaskOutliers
@@ -111,7 +111,7 @@ class AfterDetector1Pipeline:
 class AfterSpec2Pipeline:
     '''Pipeline to run after Spec2Pipeline.'''
 
-    suffix = '_2_cal'
+    suffix = '_2'
     output_dir: Path | str | None = None
 
     def __init__(self) -> None:
@@ -120,7 +120,7 @@ class AfterSpec2Pipeline:
         self.slitedges = ConfigMaskingSlitedge()
         self.global_background = ConfigSubtractGlobalBackground()
         self.slits_background = ConfigSubtractSlitsBackground()
-        self.objmask = ConfigMaskingObj()
+        self.objmask = ConfigMaskingObjects()
         self.suffix = self.suffix
 
     def run(self, filename: str | Path) -> Path:
@@ -137,9 +137,7 @@ class AfterSpec2Pipeline:
             datamodel = masking_objects3D(
                 datamodel,
                 self.objmask.fname3d,
-                self.objmask.positions,
-                self.objmask.radii,
-                self.objmask.waves,
+                self.objmask.apertures,
             )
 
         if not self.sigmaclip.skip:
@@ -147,7 +145,7 @@ class AfterSpec2Pipeline:
                 datamodel.data, datamodel.dq, sigma=self.sigmaclip.sigma
             )
             if self.sigmaclip.save_results:
-                fsave = path.name.replace('_1_cal', '_2_cal_clipped')
+                fsave = path.name.replace('_1_cal', self.suffix + '_cal_clipped')
                 output_dir = self.path_output_dir(path)
                 fits.writeto(output_dir / fsave, clmask.astype(int), overwrite=True)
 
@@ -159,14 +157,14 @@ class AfterSpec2Pipeline:
                 datamodel, move_pixels=self.global_background.move_pixels
             )
             if self.global_background.save_results:
-                fsave = path.name.replace('_1_cal', '_2_globalbkg')
+                fsave = path.name.replace('_1_cal', self.suffix + '_globalbkg')
                 output_dir = self.path_output_dir(path)
                 fits.writeto(output_dir / fsave, bk2d, overwrite=True)
 
         if not self.slits_background.skip:
             datamodel = subtract_slits_background(datamodel)
 
-        fsave = path.name.replace('_1_cal', '_2_cal')
+        fsave = path.name.replace('_1_cal', self.suffix + '_cal')
         output_dir = self.path_output_dir(path)
         datamodel.save(output_dir / fsave)
         return output_dir / fsave
