@@ -2,6 +2,7 @@
 '''
 
 import logging
+from copy import deepcopy
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from astropy.coordinates import SkyCoord
@@ -15,6 +16,8 @@ from jwstgo1840.nirspec import (
     AfterSpec3Pipeline,
     CreateAsnFile,
 )
+from jwstgo1840.nirspec.masking import Aperture3D
+
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +61,9 @@ class JWSTPipelineRunner:
         fnames_output = []
         logger.info('Running Detector 1...')
         for fname in fnames:
-            run_output = detector1.run(fname)
-            fnames_output.append(Path(self.detector1.make_output_path()))
+            _detector1 = deepcopy(detector1)
+            run_output = _detector1.run(fname)
+            fnames_output.append(Path(_detector1.make_output_path()))
         logger.info('Detector 1 completed.')
 
         return fnames_output
@@ -143,8 +147,9 @@ class JWSTPipelineRunner:
     def _run_spec2(self, fname: str | Path) -> Path:
         '''Helper to run pipeline of Spec2.'''
         # run_output = spec2(asn_file)
-        run_output = self.spec2.run(fname)
-        fname_output = self.spec2.make_output_path()
+        _spec2 = deepcopy(self.spec2)
+        run_output = _spec2.run(fname)
+        fname_output = _spec2.make_output_path(suffix='cal')
         return Path(fname_output)
 
     def custom_spec2(self, spec2: Spec2Pipeline) -> None:
@@ -178,10 +183,10 @@ class JWSTPipelineRunner:
     ) -> None:
         '''Run pipeline of Spec3.'''
         if firstrun:
-            productname = self.product_name + '_1strun'
+            product_name = self.product_name + '_1strun'
         else:
-            productname = self.product_name
-        self.fname_asn = CreateAsnFile(fnames_cal).dump(self.product_name)
+            product_name = self.product_name
+        self.fname_asn = CreateAsnFile(fnames_cal).dump(product_name)
         crds_config = Spec3Pipeline.get_config_from_reference(self.fname_asn)
         self.spec3 = Spec3Pipeline.from_config_section(crds_config)
         self.custom_spec3(self.spec3)
@@ -198,7 +203,7 @@ class JWSTPipelineRunner:
 
         return fname_output
 
-    def custom_spec3(self, spec3: Spec3Pipeline):
+    def custom_spec3(self, spec3: Spec3Pipeline) -> None:
         '''Custom parameters of Spec3.'''
         spec3.save_results = True
         spec3.output_dir = self.output_dir
@@ -212,8 +217,9 @@ class JWSTPipelineRunner:
         )
 
         # Obtain smaller pixscale
-        spec3.cube_build.scale1 = 0.05
-        spec3.cube_build.scale2 = 0.05
+        spec3.cube_build.scalexy = 0.05
+        # spec3.cube_build.scale1 = 0.05
+        # spec3.cube_build.scale2 = 0.05
 
         spec3.assign_mtwcs.skip = False  # modify the wcc considering a moving target over the FoV at each exposure
         # spec3.master_background.skip = True
@@ -280,36 +286,15 @@ class JWSTPipelineRunner:
         afterspec2.global_background.skip = False
         afterspec2.objmask.skip = False
 
+        # save_results
+        afterspec2.global_background.save_results = True
+
         afterspec2.set_suffix(index=3)
 
-    def set_mask(self, fname3d: str, mask: list[Aperture3D]) -> None:
+    def set_mask(self, fname3d: str, apertures: list[Aperture3D]) -> None:
         afterspec2 = self.afterspec2
         afterspec2.objmask.skip = False
 
         # Reference 3D cube; use one before WCS fine tuning
         afterspec2.objmask.fname3d = fname3d
-
-        # Set object mask if needed
-        if not afterspec2.objmask.skip:
-            # Reference 3D cube; use one before WCS fine tuning
-            afterspec2.objmask.fname3d = (
-                self.output_dir + 'SXDF-NB1006-2_g395m-f290lp_s3d_1strun.fits'
-            )
-            # Set object positions / radii / wavelengths for mask
-            afterspec2.objmask.positions = SkyCoord(
-                [
-                    ('02h18m56.5321s', '-05d19m58.823s'),  # [OIII]5007
-                    ('02h18m56.5321s', '-05d19m58.823s'),  # [OIII]4959
-                    ('02h18m56.5321s', '-05d19m58.823s'),  # Hb
-                ]
-            )
-            afterspec2.objmask.radii = [
-                0.35,
-                0.30,
-                0.25,
-            ] * u.arcsec
-            afterspec2.objmask.waves = [
-                [4.108, 4.116],
-                [4.071, 4.076],
-                [3.990, 3.995],
-            ] * u.um
+        afterspec2.objmask.apertures = apertures

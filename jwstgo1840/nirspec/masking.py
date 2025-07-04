@@ -1,7 +1,9 @@
 '''Mask pixels in NIRSpec IFU data
 '''
+
 from __future__ import annotations
 from typing import Optional
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 import numpy as np
@@ -18,9 +20,14 @@ from .assign_wcs import get_nrs_wcs_slit, change_nrs_wcs_slit, wcs_calfits
 from .dqflag import is_dqflagged, dqflag, dqflagging
 import logging
 
-__all__ = ['NIRSpecIFUMask', 'ConfigMaskingSlitedge']
+__all__ = [
+    'NIRSpecIFUMask',
+    'ConfigMaskingSlitedge',
+    'Aperture3D',
+    'CylinderAperture3D',
+]
 
-logger = logging.getLogger('debuglog')
+logger = logging.getLogger(__name__)
 
 
 ##
@@ -140,9 +147,10 @@ def masking_msa_failed_open(datamodel: IFUImageModel) -> IFUImageModel:
 def masking_objects3D(
     datamodel: IFUImageModel,
     fname3d: str,
-    positions: SkyCoord,
-    radii: Quantity,
-    wavelengths: Quantity,
+    apertures: list[Aperture3D],
+    # positions: SkyCoord,
+    # radii: Quantity,
+    # wavelengths: Quantity,
 ) -> IFUImageModel:
     '''Masking pixels manually defined as objects.
 
@@ -171,13 +179,12 @@ def masking_objects3D(
     '''
     logger.info("Masking the following objects...")
     logger.info("Reference 3D cube file:{fname3d}")
-    ifumask = NIRSpecIFUMask(fname3d)
-    logger.info(f"Sky positions:{positions}")
-    logger.info(f"Circular mask radii:{radii}")
-    logger.info(f"Wavelengths:{wavelengths}")
+    ifumask = NIRSpecIFUMask(fname3d, apertures)
+    for aperture in apertures:
+        logger.info(f'apertures: {aperture}.')
 
-    # Masking to 3D cube
-    ifumask.add_circularmasks(positions, radii, wavelengths)
+    # # Masking to 3D cube
+    # ifumask.add_circularmasks(positions, radii, wavelengths)
 
     # Apply the mask to 2D slit image; DQ flag = 'OUTLIER'
     mask2d = ifumask.mask_cal2d(datamodel)
@@ -194,20 +201,23 @@ class NIRSpecIFUMask:
     Do not use the data cube after a wcs correction.
     '''
 
-    def __init__(self, filename_cube: str) -> None:
+    def __init__(self, filename_cube: str, apertures: list[Aperture3D]) -> None:
         self.fname = filename_cube
         self.data = fits.getdata(self.fname, 'SCI')
         self.header = fits.getheader(self.fname, 'SCI')
         self.wcs = WCS(self.header)
         self.mask = np.zeros_like(self.data, dtype=bool)
-        self.positions: SkyCoord
-        self.radii: Quantity
-        self.waves: Quantity
+        self.apertures = apertures
 
     def add_circularmasks(
         self, positions: SkyCoord, radii: Quantity, wavelengths: list[Quantity]
     ) -> None:
-        '''Add circular masks.'''
+        '''Add circular masks.
+
+        NOTE:
+            This method is out of date, but it is left
+            for days when we will implement pixel-by-pixel masking.
+        '''
         try:
             self.positions = np.concatenate((self.positions, SkyCoord))
             self.radii = np.concatenate((self.radii, radii))
@@ -241,12 +251,45 @@ class NIRSpecIFUMask:
         ra = ra * u.deg
         dec = dec * u.deg
         wavelengths = wavelengths * u.um
+        for aperture in self.apertures:
+            _mask = aperture.is_including(ra, dec, wavelengths)
+            mask |= _mask
+        return mask
+
+    def mask_cal2d_DEPRECATED(self, fname_or_datamodel: str | IFUImageModel):
+        '''Create mask for _cal.fits.'''
+        if isinstance(fname_or_datamodel, str):
+            datamodel = datamodels.open(fname_or_datamodel)
+        elif isinstance(fname_or_datamodel, IFUImageModel):
+            datamodel = fname_or_datamodel
+        else:
+            raise TypeError('The input argument must be str or datamodels.')
+
+        mask = np.zeros_like(datamodel.data).astype(bool)
+        ra, dec, wavelengths = wcs_calfits(datamodel)
+        ra = ra * u.deg
+        dec = dec * u.deg
+        wavelengths = wavelengths * u.um
         for p, r, w in zip(self.positions, self.radii, self.wave):
             distance = (ra - p.ra.to(u.deg)) ** 2 + (dec - p.dec.to(u.deg)) ** 2
             within_circle = distance < r.to(u.deg) ** 2
             within_wave = (wavelengths > w[0]) & (wavelengths < w[1])
             mask |= within_circle & within_wave
         return mask
+
+
+class Aperture3D(ABC):
+    '''Abstract class of a 3D aperture.'''
+
+    def __init__(self) -> None:
+        pass
+
+    @abstractmethod
+    def is_including(
+        self, ra: u.Quantity, dec: u.Quantity, wave: u.Quantity
+    ) -> np.ndarray:
+        '''Check whether pixels are included within a 3D aperture.'''
+        raise NotImplementedError
 
 
 @dataclass
@@ -257,6 +300,29 @@ class ConfigMaskingSlitedge:
 @dataclass
 class ConfigMaskingFailedSlitOpen:
     skip: bool = False
+
+
+@dataclass
+class ConfigMaskingObjects:
+    fname3d: str = ''
+    apertures: list[Aperture3D] = field(default_factory=list)
+    skip: bool = True
+
+    def check_welldefined(self) -> bool:
+        '''Check whether properties are correctly specified.'''
+        if not Path(self.fname3d).exists():
+            raise FileNotFoundError(
+                f'In masking objects, datacube "{self.fname3d}" does not exits. '
+                'Is product_name correct?'
+            )
+
+        for ap in self.apertures:
+            if not isinstance(ap, Aperture3D):
+                raise TypeError(
+                    'The input "apertures" assumes a list of Aperture3D, '
+                    f'but {type(ap)} was input.'
+                )
+        return True
 
 
 @dataclass
@@ -297,6 +363,30 @@ class ConfigMaskingObj:
             )
 
         return True
+
+
+class CylinderAperture3D(Aperture3D):
+    '''A 3D circular aperture.'''
+
+    def __init__(
+        self, center: SkyCoord, radius: u.Quantity, wrange: u.Quantity
+    ) -> None:
+        self.ra = center.ra.to(u.deg)
+        self.dec = center.dec.to(u.deg)
+        self.radius = radius.to(u.deg)
+        self.wrange = wrange.to(u.um)
+
+    def is_including(
+        self, ra: u.Quantity, dec: u.Quantity, wave: u.Quantity
+    ) -> np.ndarray:
+        ra = ra.to(u.deg)
+        dec = dec.to(u.deg)
+        wave = wave.to(u.um)
+
+        distance = (ra - self.ra) ** 2 + (dec - self.dec) ** 2
+        within_circle = distance < self.radius**2
+        within_wave = (wave > self.wrange[0]) & (wave < self.wrange[1])
+        return within_circle & within_wave
 
 
 def main():
