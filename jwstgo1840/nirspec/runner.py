@@ -1,10 +1,12 @@
-'''Scripts of runner of each pipeline.
-'''
+'''Scripts of runner of each pipeline.'''
 
+from typing import Self
+from importlib.resources.abc import Traversable
 import logging
 from copy import deepcopy
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
+import yaml
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 
@@ -16,13 +18,14 @@ from jwstgo1840.nirspec import (
     AfterSpec3Pipeline,
     CreateAsnFile,
 )
+from jwstgo1840.nirspec import masking
 from jwstgo1840.nirspec.masking import Aperture3D
 
 
 logger = logging.getLogger(__name__)
 
 
-__all__ = ['JWSTPipelineRunner']
+__all__ = ['JWSTPipelineRunner', 'JWSTPipelineConfig']
 
 
 ##
@@ -298,3 +301,74 @@ class JWSTPipelineRunner:
         # Reference 3D cube; use one before WCS fine tuning
         afterspec2.objmask.fname3d = fname3d
         afterspec2.objmask.apertures = apertures
+
+
+class JWSTPipelineConfig:
+    '''This can treat config files.'''
+
+    def __init__(self, config: dict) -> None:
+        self._config = config
+        self._filenames = self._config['common']['filenames_uncal']
+
+        p = Path(self._config['common']['data_dir'])
+        if not p.exists():
+            raise FileNotFoundError(
+                f'No directory {p.absolute()}. Is the current working directory correct?'
+            )
+
+    @classmethod
+    def load(cls, fname_config: Traversable | str) -> Self:
+        if isinstance(fname_config, str):
+            fname_config = Path(fname_config)
+        with fname_config.open('r') as f:
+            config = yaml.safe_load(f)
+        return cls(config)
+
+    @property
+    def target_name(self) -> str:
+        return self._config['common']['target_name']
+
+    @property
+    def data_dir(self) -> Path:
+        return Path(self._config['common']['data_dir'])
+
+    @property
+    def output_dir(self) -> str:
+        return self._config['common']['output_dir']
+
+    @property
+    def uncal(self) -> list[Path]:
+        return [self.data_dir / f for f in self._filenames]
+
+    @property
+    def rate(self) -> list[Path]:
+        return [self.data_dir / f.replace('uncal', 'rate') for f in self._filenames]
+
+    @property
+    def cal(self) -> list[Path]:
+        return [self.data_dir / f.replace('uncal', 'cal') for f in self._filenames]
+
+    @property
+    def cal1(self) -> list[Path]:
+        return [self.data_dir / f.replace('uncal', '1_cal') for f in self._filenames]
+
+    @property
+    def cal2(self) -> list[Path]:
+        return [self.data_dir / f.replace('uncal', '2_cal') for f in self._filenames]
+
+    @property
+    def cal3(self) -> list[Path]:
+        return [self.data_dir / f.replace('uncal', '3_cal') for f in self._filenames]
+
+    @property
+    def path3d(self) -> str:
+        return self.output_dir + self._config['main_2nd']['filename3d']
+
+    @property
+    def apertures(self) -> list[Aperture3D]:
+        apertures: list[Aperture3D] = []
+        if 'mask' in self._config['main_2nd'].keys():
+            for ClassAperture3D, values in self._config['main_2nd']['mask'].items():
+                SubAperture3D: Aperture3D = getattr(masking, ClassAperture3D)
+                apertures += SubAperture3D.from_config(values)
+        return apertures

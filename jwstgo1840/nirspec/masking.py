@@ -1,8 +1,7 @@
-'''Mask pixels in NIRSpec IFU data
-'''
+'''Mask pixels in NIRSpec IFU data'''
 
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Self
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -291,6 +290,12 @@ class Aperture3D(ABC):
         '''Check whether pixels are included within a 3D aperture.'''
         raise NotImplementedError
 
+    @classmethod
+    @abstractmethod
+    def from_config(cls, config: dict) -> list[Aperture3D]:
+        '''Make a list of this class from a configulation file.'''
+        raise NotImplementedError
+
 
 @dataclass
 class ConfigMaskingSlitedge:
@@ -387,6 +392,28 @@ class CylinderAperture3D(Aperture3D):
         within_circle = distance < self.radius**2
         within_wave = (wave > self.wrange[0]) & (wave < self.wrange[1])
         return within_circle & within_wave
+
+    @classmethod
+    def from_config(cls, config: dict) -> list[Aperture3D]:
+        '''Assumed configuration:
+        radec:
+          - ['10h00m29.850s', '02d13m02.29s'] # converted to SkyCoord
+        radii: [0.4] # arcsec
+        waves:
+          - [5.1218, 5.1278] # um
+        '''
+        radec = config['radec']
+        radii = config['radii']
+        waves = config['waves']
+        radec = [SkyCoord(c[0], c[1]) for c in radec]
+        radii = radii * u.arcsec
+        waves = waves * u.um
+
+        # Set object positions / radii / wavelengths for mask
+        apertures: list[Aperture3D] = []
+        for rd, r, w in zip(radec, radii, waves):
+            apertures.append(CylinderAperture3D(rd, r, w))
+        return apertures
 
 
 def main():

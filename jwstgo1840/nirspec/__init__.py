@@ -1,5 +1,4 @@
-'''NIRSpec pipeline
-'''
+'''NIRSpec pipeline'''
 
 from .background import subtract_bacground
 from .masking import masking_slitedges
@@ -10,7 +9,7 @@ from .pipeline import (
     AfterSpec3Pipeline,
     CreateAsnFile,
 )
-from .runner import JWSTPipelineRunner
+from .runner import JWSTPipelineRunner, JWSTPipelineConfig
 
 __all__ = [
     'subtract_bacground',
@@ -23,4 +22,5 @@ __all__ = [
     'AfterSpec3Pipeline',
     'CreateAsnFile',
     'JWSTPipelineRunner',
+    'JWSTPipelineConfig',
 ]
