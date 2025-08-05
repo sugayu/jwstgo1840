@@ -7,11 +7,8 @@ from copy import deepcopy
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 import yaml
-from astropy.coordinates import SkyCoord
-import astropy.units as u
 
 from jwst.pipeline import Detector1Pipeline, Spec2Pipeline, Spec3Pipeline
-from jwst import datamodels
 from jwstgo1840.nirspec import (
     AfterDetector1Pipeline,
     AfterSpec2Pipeline,
@@ -338,37 +335,37 @@ class JWSTPipelineConfig:
         return self._config['common']['output_dir']
 
     @property
-    def uncal(self) -> list[Path]:
+    def filenames_uncal(self) -> list[Path]:
         return [self.data_dir / f for f in self._filenames]
 
     @property
-    def rate(self) -> list[Path]:
+    def filenames_rate(self) -> list[Path]:
         return [self._output_path / f.replace('uncal', 'rate') for f in self._filenames]
 
     @property
-    def cal(self) -> list[Path]:
+    def filenames_cal(self) -> list[Path]:
         return [self._output_path / f.replace('uncal', 'cal') for f in self._filenames]
 
     @property
-    def cal1(self) -> list[Path]:
+    def filenames_cal1(self) -> list[Path]:
         return [
             self._output_path / f.replace('uncal', '1_cal') for f in self._filenames
         ]
 
     @property
-    def cal2(self) -> list[Path]:
+    def filenames_cal2(self) -> list[Path]:
         return [
             self._output_path / f.replace('uncal', '2_cal') for f in self._filenames
         ]
 
     @property
-    def cal3(self) -> list[Path]:
+    def filenames_cal3(self) -> list[Path]:
         return [
             self._output_path / f.replace('uncal', '3_cal') for f in self._filenames
         ]
 
     @property
-    def path3d(self) -> str:
+    def filename_3d(self) -> str:
         return self.output_dir + self._config['main_2nd']['filename3d']
 
     @property
