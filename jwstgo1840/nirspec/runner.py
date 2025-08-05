@@ -315,6 +315,7 @@ class JWSTPipelineConfig:
             raise FileNotFoundError(
                 f'No directory {p.absolute()}. Is the current working directory correct?'
             )
+        self._output_path = Path(self._config['common']['output_dir'])
 
     @classmethod
     def load(cls, fname_config: Traversable | str) -> Self:
@@ -342,23 +343,29 @@ class JWSTPipelineConfig:
 
     @property
     def rate(self) -> list[Path]:
-        return [self.data_dir / f.replace('uncal', 'rate') for f in self._filenames]
+        return [self._output_path / f.replace('uncal', 'rate') for f in self._filenames]
 
     @property
     def cal(self) -> list[Path]:
-        return [self.data_dir / f.replace('uncal', 'cal') for f in self._filenames]
+        return [self._output_path / f.replace('uncal', 'cal') for f in self._filenames]
 
     @property
     def cal1(self) -> list[Path]:
-        return [self.data_dir / f.replace('uncal', '1_cal') for f in self._filenames]
+        return [
+            self._output_path / f.replace('uncal', '1_cal') for f in self._filenames
+        ]
 
     @property
     def cal2(self) -> list[Path]:
-        return [self.data_dir / f.replace('uncal', '2_cal') for f in self._filenames]
+        return [
+            self._output_path / f.replace('uncal', '2_cal') for f in self._filenames
+        ]
 
     @property
     def cal3(self) -> list[Path]:
-        return [self.data_dir / f.replace('uncal', '3_cal') for f in self._filenames]
+        return [
+            self._output_path / f.replace('uncal', '3_cal') for f in self._filenames
+        ]
 
     @property
     def path3d(self) -> str:
