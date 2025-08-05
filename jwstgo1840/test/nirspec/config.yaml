@@ -1,0 +1,25 @@
+common:
+  target_name: Galaxy
+  data_dir: jwstgo1840/test/nirspec/raw/
+  output_dir: calib/
+  filenames_uncal:
+    - jw0100000_02000_f00001_nrs1_uncal.fits
+    - jw0100000_02000_f00001_nrs2_uncal.fits
+    - jw0100000_02000_f00002_nrs1_uncal.fits
+    - jw0100000_02000_f00002_nrs2_uncal.fits
+    - jw0100000_02000_f00003_nrs1_uncal.fits
+    - jw0100000_02000_f00003_nrs2_uncal.fits
+    - jw0100000_02000_f00004_nrs1_uncal.fits
+    - jw0100000_02000_f00004_nrs2_uncal.fits
+
+main_1st:
+
+main_2nd:
+  filename3d: Galaxy_1strun_g395h-f290lp_s3d.fits # currently meaningless
+  mask:
+    CylinderAperture3D:
+      radec:
+        - [10h00m00.000s, 00d00m00.00s]
+      radii: [0.4]
+      waves:
+        - [3.9000, 3.9100]
