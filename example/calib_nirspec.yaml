@@ -1,0 +1,34 @@
+# Example of configuration file. This is for COS-2987
+common:
+  target_name: COS-2987030247
+  data_dir: raw/
+  output_dir: calib/
+  filenames_uncal:
+    - jw01840011001_02101_00001_nrs1_uncal.fits
+    - jw01840011001_02101_00001_nrs2_uncal.fits
+    - jw01840011001_02101_00002_nrs1_uncal.fits
+    - jw01840011001_02101_00002_nrs2_uncal.fits
+    - jw01840011001_02101_00003_nrs1_uncal.fits
+    - jw01840011001_02101_00003_nrs2_uncal.fits
+    - jw01840011001_02101_00004_nrs1_uncal.fits
+    - jw01840011001_02101_00004_nrs2_uncal.fits
+
+main_1st:
+
+main_2nd:
+  filename3d: COS-2987030247_1strun_g395h-f290lp_s3d.fits # currently meaningless
+  mask:
+    CylinderAperture3D:
+      radec:                                # CRDS
+        - ['10h00m29.850s', '02d13m02.29s']  # Halpha
+        - ['10h00m29.850s', '02d13m02.29s']  # [OIII]5007
+        - ['10h00m29.850s', '02d13m02.29s']  # [OIII]4959
+        - ['10h00m29.850s', '02d13m02.29s']  # Hbeta
+        - ['10h00m29.850s', '02d13m02.29s']  # [OII]
+      radii: [0.4, 0.4, 0.4, 0.3]           # arcsec
+      waves:
+        - [5.1218, 5.1278]      # um
+        - [3.9073, 3.9125]
+        - [3.8705, 3.8741]
+        - [3.7945, 3.7985]
+        - [2.9083, 2.9137]
