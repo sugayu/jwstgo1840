@@ -102,8 +102,7 @@ Therefore, additional flux calibration steps are not implemented.
 Examples are written in the example directory.
 
 An example of NIRSpec calibration is written in [[./example/calib_nirspecifu.py]]
-Another one, [[./example/calib_nirspecifu_v0.4.4.py]], is an old example,
-although it may be helpful to understand how the pipelines are working.
+Although another example, [[./example/calib_nirspecifu_v0.4.4.py]], is old, it may be helpful to understand how the pipelines are working.
 
 ** Create _cal.fits mask
 The RIOJA custom pipeline uses masks for bright objects in ~AfterSpec2Pipeline~ in the second reduction step.
