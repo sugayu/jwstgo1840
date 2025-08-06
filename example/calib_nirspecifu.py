@@ -19,7 +19,7 @@ Assumed Directory Structure:
         |--calib_nirspecifu.yaml
 
 Run:
-    python ./script/calib_XXX.py
+    python ./script/calib_nirspecifu.py
 '''
 
 import os
