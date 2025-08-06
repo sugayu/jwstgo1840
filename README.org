@@ -1,10 +1,17 @@
-#+title: JWST custom pipeline for GO1840
+#+title: RIOJA Custom Pipeline for JWST Data Reduction (PID: 1840)
 
 * Installation
 ** conda environment
 First, it is recommended to create a new Python environment using ~conda~ and to work in the virtual environment.
-This is an example to create a virtual environment ~jwstcal~ (shared by Ken).
-Please specify a <version> that you want to download (like "1.14.0").
+As the RIOJA custom pipeline requires the ~jwst~ public pipeline, please see the latest informaiton here:
+- [[https://github.com/spacetelescope/jwst?tab=readme-ov-file][GitHub - spacetelescope/jwst: Python library for science observations from the James Webb Space Telescope]]
+If you are not familliar with creating a ~conda~ environment,
+[[https://github.com/spacetelescope/jwst?tab=readme-ov-file#installing-latest-releases][#Installing Latest Releases]] and [[https://github.com/spacetelescope/jwst?tab=readme-ov-file#installing-a-dms-operational-build][#Installing a DMS Operational Build]] may help you create the environment and install the ~jwst~ pipeline.
+
+*** Previous information prior to ~jwst~ 1.16.1
+As also described in [[https://github.com/spacetelescope/jwst?tab=readme-ov-file#installing-a-dms-operational-build][#Installing a DMS Operational Build]] for versions prior to 1.16.1,
+this is an example to create a virtual environment ~jwstcal~ (shared by Ken).
+Please specify a <version> that you want to download (like "1.14.0", prior to 1.16.1).
 #+begin_src bash
   # for Mac
   conda create -n jwstcal --file https://ssb.stsci.edu/releases/jwstdp/<version>/conda_python_macos-stable-deps.txt
@@ -31,40 +38,33 @@ If you failed ~pip install -r ....txt~, the following code might help you.
 #+end_src
 
 ** pip install
-When the Github repository is public, you can install ~jwstgo1840~ using ~pip~:
+You can install ~jwstgo1840~ using ~pip~:
 #+begin_src bash
-  pip install git+https://github.com/sugayu/jwstgo1840.git  # this may not be working.
+  pip install git+https://github.com/sugayu/jwstgo1840.git
 #+end_src
-However, ~jwstgo1840~ is currently private; therefore, you have to pass an authentication.
-
-There are two ways of authentication.
-The first way would be recommend if you can use SSH.
-
-1 --- SSH public key authentication.
-
-   If you put your public key in Github, you can access to and pip the repository with
+or
 #+begin_src bash
   pip install git+ssh://git@github.com/sugayu/jwstgo1840.git
 #+end_src
 
-
-2 --- HTTP connection with personal access token authentication.
-
-   If you have a personal access token created in Github, you can use it as
-#+begin_src bash
-  pip install git+https://YOUR_GITHUB_TOKEN@github.com/sugayu/jwstgo1840.git
-#+end_src
-   where ~YOUR_GITHUB_TOKEN~ is your personal access token.
-   Please google details of the token.
-
 To update the package, you may need to add the ~--upgrade~ option.
 #+begin_src bash
-  pip install --upgrade git+https://github.com/sugayu/jwstgo1840.git  # this may not be working too.
+  pip install --upgrade git+https://github.com/sugayu/jwstgo1840.git
 #+end_src
 
 * Short description
-** Implementations
-In our custom pipeline, we added (currently) two reduction steps during the process of the JWST official pipeline.
+** Concept of the RIOJA custom pipeline
+We have developed the RIOJA custom pipeline
+to reduce noises in the 3D data cube and subtract a global background in a statistical manner.
+
+The custom pipeline conducts data reduction with two steps.
+The first step makes a tentative 3D cube with minimum reduction processes without background subtraction.
+Looking through the tentative 3D cube, users will find bright pixels affected by emission lines, which should be masked.
+The users give mask information via the config file and go to the next reduction step.
+The second step performs strict sigma clipping for outlier pixels and global background subtraction to produce the final data cube.
+
+** Implementation
+In the custom pipeline, we added (currently) two reduction steps during the process of the JWST official pipeline.
 One is AfterDetector1Pipeline and the other is AfterSpec2Pipeline.
 
 In AfterDetector1Pipeline, there are three additional reduction processes:
@@ -101,49 +101,39 @@ Therefore, additional flux calibration steps are not implemented.
 ** NIRSpec reduction
 Examples are written in the example directory.
 
-An example of NIRSpec calibration is written in example/calib_nirspecifu.py.
+An example of NIRSpec calibration is written in [[./example/calib_nirspecifu.py]]
+Another one, [[./example/calib_nirspecifu_v0.4.4.py]], is an old example,
+although it may be helpful to understand how the pipelines are working.
 
 ** Create _cal.fits mask
-~NIRSpecIFUMask~ provides a mask for _cal.fits that corresponds to a circular mask in the sky.
-This will help to mask objects for additional reductions like strict sigma clipping.
+The RIOJA custom pipeline uses masks for bright objects in ~AfterSpec2Pipeline~ in the second reduction step.
+The aperture mask will help additional reductions like strict sigma clipping by masking objects.
 
-Example usage:
-#+begin_src python
-  import astropy.units as u
-  from astropy.coordinates import SkyCoord
-  from jwstgo1840.nirspec.masking import NIRSpecIFUMask
+The pipeline provides aperture mask classes; currently only ~CylinderAperture3D~ is available.
+Using the class, users can give aperture parameters through a config file
+or can make apertures directly in the calib main file.
+Also users can easily create a new mask class by inheriting the abstract ~Aperture3D~ class.
+An example of definitions of ~CylinderAperture3D~ masks is:
 
-  fname3d = 'calib/example/product_name_g395h-f290lp_s3d.fits'
-  fname2d = 'calib/example/jw01840017001_02101_00001_nrs2_2_cal.fits'
-
-  ifumask = NIRSpecIFUMask(fname3d)
-  positions = SkyCoord([
-      ('00h14m24.9217s', '-30d22m56.160s'),
-      ('00h14m24.9291s', '-30d22m54.956s'),
-      ('00h14m24.9098s', '-30d22m54.936s'),
-      ('00h14m24.8742s', '-30d22m54.998s'),
-      ('00h14m24.7796s', '-30d22m56.020s'),
-  ])
-  radii = [
-      0.4,
-      0.4,
-      0.3,
-      0.3,
-      0.4,
-  ] * u.arcsec
-  waves = [
-      [4.3, 4.5],
-      [4.4445, 4.45],
-      [4.442, 4.448],
-      [4.442, 4.447],
-      [4.44, 4.446],
-  ] * u.um
-  ifumask.add_circularmasks(positions, radii, waves)
-  mask2d = ifumask.mask_cal2d(fname2d)
+#+begin_src yaml
+  mask:
+    CylinderAperture3D:
+      radec:                                # CRDS
+        - ['10h00m29.850s', '02d13m02.29s']  # Halpha
+        - ['10h00m29.850s', '02d13m02.29s']  # [OIII]5007
+        - ['10h00m29.850s', '02d13m02.29s']  # [OIII]4959
+        - ['10h00m29.850s', '02d13m02.29s']  # Hbeta
+        - ['10h00m29.850s', '02d13m02.29s']  # [OII]
+      radii: [0.4, 0.4, 0.4, 0.3]           # arcsec
+      waves:
+        - [5.1218, 5.1278]      # um
+        - [3.9073, 3.9125]
+        - [3.8705, 3.8741]
+        - [3.7945, 3.7985]
+        - [2.9083, 2.9137]
 #+end_src
 
-This object masking is now implemented in the latest version of AfterSpec2Pipeline.
-Please see an example usege in example/calib_nirspecifu.py.
+The pixel-by-pixel masking by giving a 3D mask cube is under development.
 
 ** WCS in _cal.fits
 ~wcs_calfits~ provides RA, DEC, and wavelengths for _cal.fits.
@@ -158,6 +148,10 @@ Please see an example usege in example/calib_nirspecifu.py.
 #+end_src
 
 * Release Notes
+** version 0.5.0
+- Make a new example script with much less codes and relying on a config yaml file.
+- Make ~JWSTPipelineRunner~ and ~JWSTPipelineConfig~ for a new style of script.
+
 ** version 0.4.0
 - Add hot pixel masks for F395M/F290LP.
 - Change global background subtraction according to patterns made by the four amplifiers.
