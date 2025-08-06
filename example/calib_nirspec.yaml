@@ -19,7 +19,7 @@ main_2nd:
   filename3d: COS-2987030247_1strun_g395h-f290lp_s3d.fits # currently meaningless
   mask:
     CylinderAperture3D:
-      radec:
+      radec:                                # CRDS
         - ['10h00m29.850s', '02d13m02.29s']  # Halpha
         - ['10h00m29.850s', '02d13m02.29s']  # [OIII]5007
         - ['10h00m29.850s', '02d13m02.29s']  # [OIII]4959

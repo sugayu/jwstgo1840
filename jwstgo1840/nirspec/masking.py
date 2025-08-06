@@ -214,7 +214,7 @@ class NIRSpecIFUMask:
         '''Add circular masks.
 
         NOTE:
-            This method is out of date, but it is left
+            This method is out of date, but it is left as it was
             for days when we will implement pixel-by-pixel masking.
         '''
         try:
