@@ -18,6 +18,28 @@ __all__ = ['get_nrs_wcs_slit', 'change_nrs_wcs_slit', 'wcs_calfits']
 
 
 ##
+def wcs_calfits(input_model):
+    '''Return (ra,dec,wave) of cal.fits.
+
+    New WCS format after jwst v1.18.0 contains infomation of WCS slit position with it.
+    Therefore, cal files can get slit WCSs without explicitly specifying the slit ids.
+    Details are described here: https://github.com/spacetelescope/jwst/pull/9452
+
+    TODO:
+        This function makes coordinates to be zero for pixels outside slits, but
+        the default pipeline makes it NaN. Check and evaluate which is better.
+    '''
+    y, x = np.mgrid[: input_model.data.shape[-2], : input_model.data.shape[-1]]
+    ra, dec, wave = input_model.meta.wcs(x, y)
+
+    shape = input_model.data.shape
+    radecw = np.zeros((3, *shape))
+    radecw[0, ~np.isnan(ra)] = ra[~np.isnan(ra)]
+    radecw[1, ~np.isnan(dec)] = dec[~np.isnan(dec)]
+    radecw[2, ~np.isnan(wave)] = wave[~np.isnan(wave)]
+    return radecw
+
+
 def get_nrs_wcs_slit(input_model, slit_name) -> WCS:
     """
     Returns a WCS object for a specific slit, slice or shutter.
@@ -46,10 +68,14 @@ def change_nrs_wcs_slit(input_model, slit_wcs, slit_name) -> WCS:
     return nrs_wcs_set_input(input_model, slit_name, wrange, slit_wcs=slit_wcs)
 
 
-def wcs_calfits(input_model):
+def wcs_calfits_for_oldwcs(input_model):
     '''Return (ra,dec,wave) of cal.fits.
 
     This function takes ~20 seconds.
+
+    NOTE:
+        This function was deprecated after jwst v1.18.0 because of
+        complete update of WCS formats. New function is wcs_calfits.
     '''
     shape = input_model.data.shape
     radecw = np.zeros((3, *shape))
