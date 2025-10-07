@@ -148,7 +148,9 @@ The pixel-by-pixel masking by giving a 3D mask cube is under development.
 
 * Release Notes
 ** version 0.6.0
-- Adjust 
+- Adjust this package to the new WCS logic of cal.fits data:
+  [[https://github.com/spacetelescope/jwst/pull/9452][JP-3922: Add a slice map to NRS IFU model and WCS by melanieclarke · Pull Request #9452 · spacetelescope/jwst · GitHub]]
+- Make jwst directroy to try to separate dependency on jwst package (yet not perfect).
 
 ** version 0.5.0
 - Make a new example script with much less codes and relying on a config yaml file.
