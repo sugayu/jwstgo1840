@@ -1,18 +1,18 @@
-'''Subtract background
-'''
+'''Subtract background'''
 
 from __future__ import annotations
 import warnings
+from typing import Generator
 from dataclasses import dataclass
 import numpy as np
 from scipy.interpolate import interp1d
 from astropy.io import fits
 from astropy.stats import sigma_clip
 from astropy.utils.exceptions import AstropyUserWarning
-from jwst.datamodels import IFUImageModel
 from gwcs import wcstools
-from .dqflag import is_dqflagged
-from .assign_wcs import wcs_calfits, get_nrs_wcs_slit, change_nrs_wcs_slit
+from .jwst import IFUImageModel
+from .jwst.dqflag import is_dqflagged
+from .jwst.assign_wcs import wcs_calfits
 
 
 ##
@@ -49,7 +49,7 @@ def subtract_1fnoises_from_detector(data, dq, move=5, axis=0):
     return data - np.expand_dims(background, axis)
 
 
-def subtract_slits_background(input_model: IFUImageModel) -> IFUImageModel:
+def subtract_slits_background(datamodel: IFUImageModel) -> IFUImageModel:
     '''Subtract slit backgrounds depending detector and slits.
 
     Current codes work after global background subtraction,
@@ -60,17 +60,22 @@ def subtract_slits_background(input_model: IFUImageModel) -> IFUImageModel:
     Backgrounds vary from one skip to the next.
     '''
     nslits = 30  # for NIRSpec IFU
-    data = input_model.data
-    dq = input_model.dq
+    data = datamodel.data
+    dq = datamodel.dq
     is_flagged = is_dqflagged(dq, 'DO_NOT_USE')
     _data = data.copy()
     _data[is_flagged] = np.nan
 
+    y, x = np.mgrid[: datamodel.data.shape[-2], : datamodel.data.shape[-1]]
     for i in range(nslits):
-        if i == 0:
-            slice_wcs = get_nrs_wcs_slit(input_model, i)
-        else:
-            slice_wcs = change_nrs_wcs_slit(input_model, slice_wcs, i)
+        # if i == 0:
+        #     slice_wcs = get_nrs_wcs_slit(datamodel, i)
+        # else:
+        #     slice_wcs = change_nrs_wcs_slit(datamodel, slice_wcs, i)
+
+        in_slice = datamodel.regions == i + 1
+        slice_y, slice_x = y[in_slice], x[in_slice]
+        slice_wcs = datamodel.meta.wcs(slice_x, slice_y)
 
         x, y = wcstools.grid_from_bounding_box(slice_wcs.bounding_box)
         x, y = x.astype(int), y.astype(int)
@@ -83,7 +88,7 @@ def subtract_slits_background(input_model: IFUImageModel) -> IFUImageModel:
         data[y[0::2, :], x[0::2, :]] -= background1
         data[y[1::2, :], x[1::2, :]] -= background2
 
-    return input_model
+    return datamodel
 
 
 def subtract_global_background(
@@ -181,7 +186,7 @@ def moving_average(spec1d, n=5):
     return move_avg
 
 
-def get_amplifier_patterns() -> np.ndarray:
+def get_amplifier_patterns() -> Generator:
     '''Get bool array indicating pixels read by a amplifier.
 
     The IRS2 readout pattern of NIRSpec IFU uses four amplifiers when reading

@@ -237,7 +237,7 @@ class JWSTPipelineRunner:
         afterdet1.output_dir = self.output_dir
 
         # is_skip
-        afterdet1.maskoutlier.skip = True
+        afterdet1.maskoutlier.skip = False
         afterdet1.subtract_1fnoise.skip = False
         afterdet1.sigmaclip.skip = True
 

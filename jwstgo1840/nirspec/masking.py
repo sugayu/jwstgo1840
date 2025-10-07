@@ -1,7 +1,7 @@
 '''Mask pixels in NIRSpec IFU data'''
 
 from __future__ import annotations
-from typing import Optional, Self
+from typing import Optional
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -12,11 +12,13 @@ import astropy.units as u
 from astropy.units import Quantity
 from astropy.coordinates import SkyCoord
 from photutils.aperture import SkyCircularAperture
+
+# TODO: Remove dependency from raw jwst package.
 from jwst import datamodels
-from jwst.datamodels import IFUImageModel
+from .jwst import IFUImageModel
 from gwcs import wcstools
-from .assign_wcs import get_nrs_wcs_slit, change_nrs_wcs_slit, wcs_calfits
-from .dqflag import is_dqflagged, dqflag, dqflagging
+from .jwst.assign_wcs import wcs_calfits
+from .jwst.dqflag import is_dqflagged, dqflag, dqflagging
 import logging
 
 __all__ = [
@@ -41,14 +43,21 @@ def masking_slitedges(datamodel: IFUImageModel) -> tuple[IFUImageModel, np.ndarr
     detector = datamodel.meta.instrument.detector
 
     mask_edge = np.zeros_like(datamodel.data).astype(bool)
+    y, x = np.mgrid[: datamodel.data.shape[-2], : datamodel.data.shape[-1]]
+    ra = np.full_like(x, np.nan).astype(float)
     for i in range(nslits):
-        if i == 0:
-            slice_wcs = get_nrs_wcs_slit(datamodel, i)
-        else:
-            slice_wcs = change_nrs_wcs_slit(datamodel, slice_wcs, i)
+        # if i == 0:
+        #     slice_wcs = get_nrs_wcs_slit(datamodel, i)
+        # else:
+        #     slice_wcs = change_nrs_wcs_slit(datamodel, slice_wcs, i)
 
-        y, x = where_are_edges(slice_wcs, detector, i)
-        mask_edge[y, x] = True
+        in_slice = datamodel.regions == i + 1
+        slice_y, slice_x = y[in_slice], x[in_slice]
+        slice_wcs = datamodel.meta.wcs(slice_x, slice_y)
+        ra[in_slice] = slice_wcs[0]
+
+        idx_y, idx_x = where_are_edges(x, y, ra, detector, i)
+        mask_edge[idx_y, idx_x] = True
 
     already_flagged = is_dqflagged(datamodel.dq, 'DO_NOT_USE')
     mask_edge[already_flagged] = False
@@ -58,15 +67,20 @@ def masking_slitedges(datamodel: IFUImageModel) -> tuple[IFUImageModel, np.ndarr
 
 
 def where_are_edges(
-    slice_wcs: WCS, detector: Optional[str] = None, i_slice: Optional[int] = None
+    x: np.ndarray,
+    y: np.ndarray,
+    ra: np.ndarray,
+    detector: Optional[str] = None,
+    i_slice: Optional[int] = None,
+    # slice_wcs: WCS, detector: Optional[str] = None, i_slice: Optional[int] = None
 ) -> tuple[np.ndarray, np.ndarray]:
     '''Detect where are edges of slits.
 
     Importantly, edge widths depend on the detector (nrs1 or nrs2) and
     the slit numbers (0-29).
     '''
-    x, y = wcstools.grid_from_bounding_box(slice_wcs.bounding_box)
-    ra, _, _ = slice_wcs(x, y)
+    # x, y = wcstools.grid_from_bounding_box(slice_wcs.bounding_box)
+    # ra, _, _ = slice_wcs(x, y)
     # ra, dec, lambda = slice_wcs(x, y)
 
     y2 = np.copy(y)
@@ -127,7 +141,8 @@ def get_edgewidths(
         # if i_slice == 5:  # 12 from top
         #     return 15, 15
         if i_slice == 16:  # 23 from top
-            return 15, 1
+            # return 15, 1  # too large to apply it to all data?
+            return 5, 1
         if i_slice == 26:  # 28 from top
             return 2, 1
 

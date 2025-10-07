@@ -102,8 +102,7 @@ Therefore, additional flux calibration steps are not implemented.
 Examples are written in the example directory.
 
 An example of NIRSpec calibration is written in [[./example/calib_nirspecifu.py]]
-Another one, [[./example/calib_nirspecifu_v0.4.4.py]], is an old example,
-although it may be helpful to understand how the pipelines are working.
+Although another example, [[./example/calib_nirspecifu_v0.4.4.py]], is old, it may be helpful to understand how the pipelines are working.
 
 ** Create _cal.fits mask
 The RIOJA custom pipeline uses masks for bright objects in ~AfterSpec2Pipeline~ in the second reduction step.
@@ -148,6 +147,11 @@ The pixel-by-pixel masking by giving a 3D mask cube is under development.
 #+end_src
 
 * Release Notes
+** version 0.6.0
+- Adjust this package to the new WCS logic of cal.fits data:
+  [[https://github.com/spacetelescope/jwst/pull/9452][JP-3922: Add a slice map to NRS IFU model and WCS by melanieclarke · Pull Request #9452 · spacetelescope/jwst · GitHub]]
+- Make jwst directroy to try to separate dependency on jwst package (yet not perfect).
+
 ** version 0.5.0
 - Make a new example script with much less codes and relying on a config yaml file.
 - Make ~JWSTPipelineRunner~ and ~JWSTPipelineConfig~ for a new style of script.
