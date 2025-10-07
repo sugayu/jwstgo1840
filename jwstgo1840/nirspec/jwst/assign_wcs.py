@@ -7,18 +7,13 @@ import copy
 import numpy as np
 from astropy.wcs import WCS
 from astropy.modeling.models import Identity
-from jwst.assign_wcs.nirspec import (
-    spectral_order_wrange_from_model,
-    compute_bounding_box,
-)
-from jwst.assign_wcs.nirspec import nrs_wcs_set_input as jwst_nrs_wcs_set_input
-from jwst.lib.exposure_types import is_nrs_ifu_lamp
+from .datamodels import JwstDataModel
 
-__all__ = ['get_nrs_wcs_slit', 'change_nrs_wcs_slit', 'wcs_calfits']
+__all__ = ['wcs_calfits']
 
 
 ##
-def wcs_calfits(input_model):
+def wcs_calfits(datamodel: JwstDataModel):
     '''Return (ra,dec,wave) of cal.fits.
 
     New WCS format after jwst v1.18.0 contains infomation of WCS slit position with it.
@@ -29,15 +24,24 @@ def wcs_calfits(input_model):
         This function makes coordinates to be zero for pixels outside slits, but
         the default pipeline makes it NaN. Check and evaluate which is better.
     '''
-    y, x = np.mgrid[: input_model.data.shape[-2], : input_model.data.shape[-1]]
-    ra, dec, wave = input_model.meta.wcs(x, y)
+    y, x = np.mgrid[: datamodel.data.shape[-2], : datamodel.data.shape[-1]]
+    ra, dec, wave = datamodel.meta.wcs(x, y)
 
-    shape = input_model.data.shape
+    shape = datamodel.data.shape
     radecw = np.zeros((3, *shape))
     radecw[0, ~np.isnan(ra)] = ra[~np.isnan(ra)]
     radecw[1, ~np.isnan(dec)] = dec[~np.isnan(dec)]
     radecw[2, ~np.isnan(wave)] = wave[~np.isnan(wave)]
     return radecw
+
+
+# Below, deplicated functions for old-style WCS
+from jwst.assign_wcs.nirspec import (
+    spectral_order_wrange_from_model,
+    compute_bounding_box,
+)
+from jwst.assign_wcs.nirspec import nrs_wcs_set_input as jwst_nrs_wcs_set_input
+from jwst.lib.exposure_types import is_nrs_ifu_lamp
 
 
 def get_nrs_wcs_slit(input_model, slit_name) -> WCS:

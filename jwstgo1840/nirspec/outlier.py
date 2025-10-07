@@ -1,5 +1,4 @@
-'''Remove outlier
-'''
+'''Remove outlier'''
 
 from __future__ import annotations
 import warnings
@@ -9,9 +8,8 @@ import numpy as np
 from astropy.io import fits
 from astropy.stats import sigma_clip
 from astropy.utils.exceptions import AstropyUserWarning
-from jwst import datamodels
-from jwst.datamodels import IFUImageModel
-from .dqflag import dqflagging, is_dqflagged
+from .jwst import IFUImageModel
+from .jwst.dqflag import dqflagging, is_dqflagged
 
 
 ##
@@ -129,6 +127,8 @@ class ConfigMaskOutliers:
 
 def main():
     '''Example'''
+    from jwst import datamodels
+
     fnames = [
         'calib/calib4th/jw01840017001_02101_00001_nrs1_rate_clipped_edgemask_cal.fits',
         'calib/calib4th/jw01840017001_02101_00001_nrs2_rate_clipped_edgemask_cal.fits',

@@ -1,7 +1,7 @@
 '''Mask pixels in NIRSpec IFU data'''
 
 from __future__ import annotations
-from typing import Optional, Self
+from typing import Optional
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -12,11 +12,13 @@ import astropy.units as u
 from astropy.units import Quantity
 from astropy.coordinates import SkyCoord
 from photutils.aperture import SkyCircularAperture
+
+# TODO: Remove dependency from raw jwst package.
 from jwst import datamodels
-from jwst.datamodels import IFUImageModel
+from .jwst import IFUImageModel
 from gwcs import wcstools
-from .assign_wcs import get_nrs_wcs_slit, change_nrs_wcs_slit, wcs_calfits
-from .dqflag import is_dqflagged, dqflag, dqflagging
+from .jwst.assign_wcs import wcs_calfits
+from .jwst.dqflag import is_dqflagged, dqflag, dqflagging
 import logging
 
 __all__ = [
@@ -69,7 +71,7 @@ def where_are_edges(
     y: np.ndarray,
     ra: np.ndarray,
     detector: Optional[str] = None,
-    i_slice: Optional[int] = None
+    i_slice: Optional[int] = None,
     # slice_wcs: WCS, detector: Optional[str] = None, i_slice: Optional[int] = None
 ) -> tuple[np.ndarray, np.ndarray]:
     '''Detect where are edges of slits.
