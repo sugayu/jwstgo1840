@@ -2,7 +2,7 @@
 '''
 from __future__ import annotations
 from dataclasses import dataclass
-from jwst.datamodels import IFUImageModel
+from .jwst import IFUImageModel
 import logging
 
 logger = logging.getLogger('debuglog')

@@ -7,6 +7,35 @@ import copy
 import numpy as np
 from astropy.wcs import WCS
 from astropy.modeling.models import Identity
+from .datamodels import JwstDataModel
+
+__all__ = ['wcs_calfits']
+
+
+##
+def wcs_calfits(datamodel: JwstDataModel):
+    '''Return (ra,dec,wave) of cal.fits.
+
+    New WCS format after jwst v1.18.0 contains infomation of WCS slit position with it.
+    Therefore, cal files can get slit WCSs without explicitly specifying the slit ids.
+    Details are described here: https://github.com/spacetelescope/jwst/pull/9452
+
+    TODO:
+        This function makes coordinates to be zero for pixels outside slits, but
+        the default pipeline makes it NaN. Check and evaluate which is better.
+    '''
+    y, x = np.mgrid[: datamodel.data.shape[-2], : datamodel.data.shape[-1]]
+    ra, dec, wave = datamodel.meta.wcs(x, y)
+
+    shape = datamodel.data.shape
+    radecw = np.zeros((3, *shape))
+    radecw[0, ~np.isnan(ra)] = ra[~np.isnan(ra)]
+    radecw[1, ~np.isnan(dec)] = dec[~np.isnan(dec)]
+    radecw[2, ~np.isnan(wave)] = wave[~np.isnan(wave)]
+    return radecw
+
+
+# Below, deplicated functions for old-style WCS
 from jwst.assign_wcs.nirspec import (
     spectral_order_wrange_from_model,
     compute_bounding_box,
@@ -14,10 +43,7 @@ from jwst.assign_wcs.nirspec import (
 from jwst.assign_wcs.nirspec import nrs_wcs_set_input as jwst_nrs_wcs_set_input
 from jwst.lib.exposure_types import is_nrs_ifu_lamp
 
-__all__ = ['get_nrs_wcs_slit', 'change_nrs_wcs_slit', 'wcs_calfits']
 
-
-##
 def get_nrs_wcs_slit(input_model, slit_name) -> WCS:
     """
     Returns a WCS object for a specific slit, slice or shutter.
@@ -46,10 +72,14 @@ def change_nrs_wcs_slit(input_model, slit_wcs, slit_name) -> WCS:
     return nrs_wcs_set_input(input_model, slit_name, wrange, slit_wcs=slit_wcs)
 
 
-def wcs_calfits(input_model):
+def wcs_calfits_for_oldwcs(input_model):
     '''Return (ra,dec,wave) of cal.fits.
 
     This function takes ~20 seconds.
+
+    NOTE:
+        This function was deprecated after jwst v1.18.0 because of
+        complete update of WCS formats. New function is wcs_calfits.
     '''
     shape = input_model.data.shape
     radecw = np.zeros((3, *shape))

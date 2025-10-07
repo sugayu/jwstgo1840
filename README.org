@@ -147,6 +147,9 @@ The pixel-by-pixel masking by giving a 3D mask cube is under development.
 #+end_src
 
 * Release Notes
+** version 0.6.0
+- Adjust 
+
 ** version 0.5.0
 - Make a new example script with much less codes and relying on a config yaml file.
 - Make ~JWSTPipelineRunner~ and ~JWSTPipelineConfig~ for a new style of script.
