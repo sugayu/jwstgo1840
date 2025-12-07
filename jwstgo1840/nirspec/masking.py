@@ -192,7 +192,7 @@ def masking_objects3D(
         >>> )
     '''
     logger.info("Masking the following objects...")
-    logger.info("Reference 3D cube file:{fname3d}")
+    logger.info(f"Reference 3D cube file:{fname3d}")
     ifumask = NIRSpecIFUMask(fname3d, apertures)
     for aperture in apertures:
         logger.info(f'apertures: {aperture}.')
