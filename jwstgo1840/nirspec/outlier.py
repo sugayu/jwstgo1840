@@ -1,7 +1,9 @@
 '''Remove outlier'''
 
 from __future__ import annotations
+from typing import Sequence
 import warnings
+from pathlib import Path
 from dataclasses import dataclass, field
 from importlib.abc import Traversable
 import numpy as np
@@ -12,7 +14,49 @@ from .jwst import IFUImageModel
 from .jwst.dqflag import dqflagging, is_dqflagged
 
 
+__all__ = [
+    'ConfigSigmaClip',
+    'ConfigMaskOutliers',
+    'ConfigMaskFailedFluxCalib',
+    'sigmaclip',
+    'MaskOutliers',
+    'mask_failedfluxcalibpix',
+    'create_pixelmask',
+]
+
+
 ##
+@dataclass
+class ConfigSigmaClip:
+    sigma: float = 10.0
+    skip: bool = False
+    save_results: bool = False
+
+
+@dataclass
+class ConfigMaskOutliers:
+    skip: bool = False
+    fnames_mask: list[Traversable] = field(default_factory=list)
+    dqflags: tuple[int, ...] | tuple[str, ...] = (
+        "DEAD",
+        "HOT",
+        "WARM",
+        "LOW_QE",
+        "RC",
+        "TELEGRAPH",
+        "NO_SAT_CHECK",
+        "UNRELIABLE_BIAS",
+        "UNRELIABLE_DARK",
+        "UNRELIABLE_SLOPE",
+        "UNRELIABLE_FLAT",
+    )
+
+
+@dataclass
+class ConfigMaskFailedFluxCalib:
+    skip: bool = False
+
+
 def sigmaclip(data, dq, sigma=10):
     '''Sigma clipping to flag outliers after Detector1
 
@@ -40,54 +84,43 @@ def sigmaclip(data, dq, sigma=10):
     return dq_new, mask_new
 
 
-def create_pixelmask(filenames, sigma=3, threshold=3):
-    '''Create a mask of pixels in detecter coordinates that have outlier values.
-
-    Open all the input files and compare the value for pixel by pixel.
-    '''
-    list_data, list_dq = [], []
-    for fn in filenames:
-        with fits.open(fn) as hdul:
-            list_data.append(hdul[1].data)
-            list_dq.append(hdul[3].data)
-
-    mask_count = np.zeros_like(list_data[0])
-    for data, dq in zip(list_data, list_dq):
-        already_flagged = is_dqflagged(dq, 'DO_NOT_USE')
-        data[already_flagged] = np.nan
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=AstropyUserWarning)
-            mask_sigmaclip = sigma_clip(data, sigma=sigma, maxiters=None, masked=True)
-        mask_count += mask_sigmaclip.mask
-
-    mask = mask_count >= threshold
-    return mask
-
-
-def clip_raws(input_model: IFUImageModel, raws: list[int]) -> IFUImageModel:
-    '''Remove raws with systematic noises.'''
-    data = input_model.data
-
-    mask = np.zeros_like(data)
-    for r in raws:
-        mask[r, :] = True
-
-    already_flagged = already_flagged = is_dqflagged(input_model.dq, 'DO_NOT_USE')
-    mask[already_flagged] = False
-    input_model.dq = dqflagging(input_model.dq, mask, 'DO_NOT_USE')
-    return input_model
-
-
 class MaskOutliers:
-    '''Class to mask outliers based on mask.'''
+    '''Class to mask outliers based on mask.
 
-    def __init__(self, fnames: list[Traversable]) -> None:
+    Related ADR
+        - ADR0001
+    '''
+
+    def __init__(self, config: ConfigMaskOutliers) -> None:
+        fnames = config.fnames_mask
         self.fname_nrs1 = fnames[0]
         self.fname_nrs2 = fnames[1]
         self._mask_nrs1: None | np.ndarray = None
         self._mask_nrs2: None | np.ndarray = None
 
-    def flag_pixels(self, dq: np.ndarray, filename: str) -> np.ndarray:
+        self.dqflags = config.dqflags
+
+    def __call__(self, datamodel: IFUImageModel, filename: str) -> np.ndarray:
+        '''Mask outlier pixels.
+
+        Args:
+            dqmap (np.ndarray): Data quality flag.
+            filename (str): File name being reduced.
+
+        Returns:
+            np.ndarray: New data quality flag where outlier pixels are flagged as
+                DO_NOT_USE.
+
+        Examples:
+            >>> maskoutlier = MaskOutliers(self.maskoutlier.fnames_mask)
+            >>> datamodel.dq = maskoutlier.flag_pixels(datamodel.dq, filename.name)
+        '''
+        dqmap = datamodel.dq
+        dqmap = self.mask_with_original(dqmap, filename)
+        dqmap = self.mask_with_dqflags(dqmap)
+        return dqmap
+
+    def mask_with_original(self, dq: np.ndarray, filename: str) -> np.ndarray:
         '''Mask pixels based on mask file.'''
         if 'nrs1' in filename:
             mask = self.mask_nrs1
@@ -98,6 +131,13 @@ class MaskOutliers:
 
         dq_new = dqflagging(dq, mask, 'DO_NOT_USE')
         return dq_new
+
+    def mask_with_dqflags(self, dqmap: np.ndarray) -> np.ndarray:
+        '''Mask outlier pixels having meaningful dqflags.'''
+        for dq in self.dqflags:
+            mask = is_dqflagged(dqmap, dq)
+            dqmap = dqflagging(dqmap, mask, 'DO_NOT_USE')
+        return dqmap
 
     @property
     def mask_nrs1(self) -> np.ndarray:
@@ -112,17 +152,85 @@ class MaskOutliers:
         return self._mask_nrs2
 
 
-@dataclass
-class ConfigSigmaClip:
-    sigma: float = 10.0
-    skip: bool = False
-    save_results: bool = False
+def mask_failedfluxcalibpix(
+    datamodel: IFUImageModel, filename: str | Path
+) -> IFUImageModel:
+    '''Mask possible pixels if the flux calibration has been failed there.
+
+    Related ADR
+        - ADR0001
+    '''
+    p = Path(filename)
+    data_rate = fits.getdata(p.parent / p.name.replace('_cal', '_rate'), 1)
+    data_cal = datamodel.data
+
+    mask = data_cal == data_rate
+    if np.count_nonzero(mask):
+        datamodel.dq = dqflagging(datamodel.dq, mask, 'DO_NOT_USE')
+
+    return datamodel
 
 
-@dataclass
-class ConfigMaskOutliers:
-    skip: bool = False
-    fnames_mask: list[Traversable] = field(default_factory=list)
+def create_pixelmask(
+    filenames: Sequence[str | Path], sigma: float = 3.0, threshold: float = 0.6
+):
+    '''Create a mask of pixels in detecter coordinates that have outlier values.
+
+    Open all the input files and compare the value for pixel by pixel.
+
+    Args:
+        filenames (list[str]): rate filename list
+        sigma (float, optional): Threshold value for sigma clipping. Defaults to 3.0.
+        threshold (float, optional): Threshold number to decide how many data have
+            outlier values at the physical pixel for masking out the pixel.
+            Defaults to 0.6.
+
+    Related ADR:
+        - ADR0001
+    '''
+    mask_count = _count_outlierpix_dithers(filenames, sigma=sigma)
+
+    _threshold = int(threshold * len(filenames))
+    mask = mask_count >= _threshold
+    return mask
+
+
+def _count_outlierpix_dithers(
+    filenames: Sequence[str | Path], sigma: float = 3
+) -> np.ndarray:
+    '''Count the number of dithers which has outlier values in pixels.'''
+    data0 = fits.getdata(filenames[0], 1)
+    mask_count = np.zeros_like(data0).astype(int)
+
+    for fn in filenames:
+        with fits.open(fn) as hdul:
+            data = hdul[1].data.copy()
+            # dq = hdul[3].data.copy()
+
+        # already_flagged = is_dqflagged(dq, 'DO_NOT_USE')
+        # data[already_flagged] = np.nan
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=AstropyUserWarning)
+            mask_sigmaclip = sigma_clip(
+                data, sigma=sigma, maxiters=None, masked=True, axis=0
+            )
+        mask_count += mask_sigmaclip.mask
+
+    return mask_count
+
+
+def clip_raws(input_model: IFUImageModel, raws: list[int]) -> IFUImageModel:
+    '''Remove raws with systematic noises.'''
+    data = input_model.data
+
+    mask = np.zeros_like(data)
+    for r in raws:
+        mask[r, :] = True
+
+    already_flagged = already_flagged = is_dqflagged(input_model.dq, 'DO_NOT_USE')
+    mask[already_flagged] = False
+    input_model.dq = dqflagging(input_model.dq, mask, 'DO_NOT_USE')
+    return input_model
 
 
 def main():
@@ -149,53 +257,6 @@ def main():
         fsave = fn.replace('_cal', '_clipped' + '_cal')
         datamodel.save(fsave)
         return fsave
-
-    # ==============================
-    # This example is to create pixel masks.
-    #
-    # FAQ
-    # Q1. Why using both rate and cal files?
-    # A1.
-    #   (1) rate file: because it would be better to find hot pixels as early
-    #       in the pipeline as possible.
-    #   (2) cal file: because there are some pixels that cannot be
-    #       flux-calibrated in cal files.
-    fnames_nrs1 = [
-        'calib/calib_bk/jw01840017001_02101_00001_nrs1_1_rate.fits',
-        'calib/calib_bk/jw01840017001_02101_00002_nrs1_1_rate.fits',
-        'calib/calib_bk/jw01840017001_02101_00003_nrs1_1_rate.fits',
-        'calib/calib_bk/jw01840017001_02101_00004_nrs1_1_rate.fits',
-    ]
-    mask_nrs1 = create_pixelmask(fnames_nrs1)
-    fnames_nrs1_cal = [
-        'calib/calib6th/jw01840017001_02101_00001_nrs1_1_cal.fits',
-        'calib/calib6th/jw01840017001_02101_00002_nrs1_1_cal.fits',
-        'calib/calib6th/jw01840017001_02101_00003_nrs1_1_cal.fits',
-        'calib/calib6th/jw01840017001_02101_00004_nrs1_1_cal.fits',
-    ]
-    mask_nrs1_cal = create_pixelmask(fnames_nrs1_cal)
-    mask_nrs1 = mask_nrs1 | mask_nrs1_cal
-    fsave = 'calib/calib_data/pixelmask_nrs1.fits'
-    fits.writeto(fsave, mask_nrs1.astype(int), overwrite=True)
-
-    fnames_nrs2 = [
-        'calib/calib_bk/jw01840017001_02101_00001_nrs2_1_rate.fits',
-        'calib/calib_bk/jw01840017001_02101_00002_nrs2_1_rate.fits',
-        'calib/calib_bk/jw01840017001_02101_00003_nrs2_1_rate.fits',
-        'calib/calib_bk/jw01840017001_02101_00004_nrs2_1_rate.fits',
-    ]
-    mask_nrs2 = create_pixelmask(fnames_nrs2)
-    fnames_nrs2_cal = [
-        'calib/calib6th/jw01840017001_02101_00001_nrs2_1_cal.fits',
-        'calib/calib6th/jw01840017001_02101_00002_nrs2_1_cal.fits',
-        'calib/calib6th/jw01840017001_02101_00003_nrs2_1_cal.fits',
-        'calib/calib6th/jw01840017001_02101_00004_nrs2_1_cal.fits',
-    ]
-    mask_nrs2_cal = create_pixelmask(fnames_nrs2_cal)
-    mask_nrs2 = mask_nrs2 | mask_nrs2_cal
-    fsave = 'calib/calib_data/pixelmask_nrs2.fits'
-    fits.writeto(fsave, mask_nrs2.astype(int), overwrite=True)
-    return
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 '''Scripts of runner of each pipeline.'''
 
-from typing import Self
+from typing import Self, Sequence
 from importlib.resources.abc import Traversable
 import logging
 from copy import deepcopy
@@ -49,7 +49,7 @@ class JWSTPipelineRunner:
 
     def run_detector1(
         self,
-        fnames: list[str | Path],
+        fnames: Sequence[str | Path],
         maximum_cores='None',
     ) -> list[Path]:
         '''Run pipeline of Detector1.'''
@@ -128,7 +128,7 @@ class JWSTPipelineRunner:
 
     def run_spec2(
         self,
-        fnames: list[str | Path],
+        fnames: Sequence[str | Path],
         maximum_cores: int = 1,
     ) -> list[Path]:
         '''Run pipeline of Spec2.'''
@@ -178,7 +178,7 @@ class JWSTPipelineRunner:
 
     def prepare_spec3(
         self,
-        fnames_cal: list[str | Path],
+        fnames_cal: Sequence[str | Path],
         firstrun: bool,
     ) -> None:
         '''Run pipeline of Spec3.'''
@@ -191,7 +191,7 @@ class JWSTPipelineRunner:
         self.spec3 = Spec3Pipeline.from_config_section(crds_config)
         self.custom_spec3(self.spec3)
 
-    def run_spec3(self, fnames_cal: list[str | Path]) -> str:
+    def run_spec3(self, fnames_cal: Sequence[str | Path]) -> str:
         '''Run pipeline of Spec3.'''
         spec3 = self.spec3
 
@@ -227,7 +227,7 @@ class JWSTPipelineRunner:
         spec3.cube_build.skip = False
         spec3.extract_1d.skip = False
 
-    def run_after_detector1(self, fnames: list[Path | str]) -> list[Path]:
+    def run_after_detector1(self, fnames: Sequence[Path | str]) -> list[Path]:
         '''Original pipeline for a stage between detector1 and spec2'''
         logger.info('Running After_Detector1...')
         return [self.afterdet1.run(f) for f in fnames]
@@ -246,7 +246,7 @@ class JWSTPipelineRunner:
         afterdet1.subtract_1fnoise.move_pixels = 5
         afterdet1.sigmaclip.sigma = 10
 
-    def run_after_spec2(self, fnames: list[Path | str]) -> list[Path]:
+    def run_after_spec2(self, fnames: Sequence[Path | str]) -> list[Path]:
         '''Original pipeline for a stage between spec2 and spec3'''
         logger.info('Running After_Spec2...')
         return [self.afterspec2.run(f) for f in fnames]
@@ -262,6 +262,7 @@ class JWSTPipelineRunner:
         afterspec2.global_background.skip = False
         afterspec2.slits_background.skip = True
         afterspec2.objmask.skip = False
+        afterspec2.failed_fluxcalib.skip = False
 
         # save_results
         afterspec2.sigmaclip.save_results = False
@@ -376,3 +377,11 @@ class JWSTPipelineConfig:
                 SubAperture3D: Aperture3D = getattr(masking, ClassAperture3D)
                 apertures += SubAperture3D.from_config(values)
         return apertures
+
+    @property
+    def can_1st(self) -> bool:
+        return self._config.get('main_1st', None) is not None
+
+    @property
+    def can_2nd(self) -> bool:
+        return self._config.get('main_2nd', None) is not None

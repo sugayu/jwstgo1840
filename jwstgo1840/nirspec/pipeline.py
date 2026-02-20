@@ -2,6 +2,7 @@
 '''
 
 from __future__ import annotations
+from type import Sequence
 from importlib import resources
 from importlib.abc import Traversable
 from pathlib import Path
@@ -27,8 +28,16 @@ from .masking import (
     ConfigMaskingObjects,
     masking_objects3D,
 )
-from .outlier import sigmaclip, MaskOutliers, ConfigSigmaClip, ConfigMaskOutliers
+from .outlier import (
+    sigmaclip,
+    MaskOutliers,
+    mask_failedfluxcalibpix,
+    ConfigSigmaClip,
+    ConfigMaskOutliers,
+    ConfigMaskFailedFluxCalib,
+)
 from .filtergratingflag import can_process_nrs2, ConfigCanProcessNRS2
+from .jwst import IFUImageModel
 
 
 ##
@@ -45,7 +54,9 @@ class AfterDetector1Pipeline:
 
     def run(self, filename: str | Path) -> Path:
         '''Run pipeline.'''
-        datamodel = datamodels.open(filename)
+        if isinstance(filename, str):
+            filename = Path(filename)
+        datamodel: IFUImageModel = datamodels.open(filename)
 
         if not self.check_process_nrs2.skip:
             detector = datamodel.meta.instrument.detector
@@ -62,8 +73,8 @@ class AfterDetector1Pipeline:
         if not self.maskoutlier.skip:
             if self.maskoutlier.fnames_mask == []:
                 self.maskoutlier.fnames_mask = self.find_pixelmaskfiles(datamodel)
-            maskoutlier = MaskOutliers(self.maskoutlier.fnames_mask)
-            datamodel.dq = maskoutlier.flag_pixels(datamodel.dq, filename)
+            mask_outlier = MaskOutliers(self.maskoutlier)
+            datamodel.dq = mask_outlier(datamodel, filename.name)
 
         if not self.subtract_1fnoise.skip:
             datamodel.data = subtract_1fnoises_from_detector(
@@ -80,6 +91,7 @@ class AfterDetector1Pipeline:
         output_dir = self.path_output_dir(path)
         datamodel.save(output_dir / fsave)
 
+        datamodel.close()
         return output_dir / fsave
 
     def path_output_dir(self, fname: Path) -> Path:
@@ -105,6 +117,11 @@ class AfterDetector1Pipeline:
             f'data/pixelmask_{filter_}{grating}_nrs1.fits',
             f'data/pixelmask_{filter_}{grating}_nrs2.fits',
         ]
+
+        fnames_mask = [
+            'data/pixelmask_nrs1.fits',
+            'data/pixelmask_nrs2.fits',
+        ]
         return [root.joinpath(f) for f in fnames_mask]
 
 
@@ -121,6 +138,7 @@ class AfterSpec2Pipeline:
         self.global_background = ConfigSubtractGlobalBackground()
         self.slits_background = ConfigSubtractSlitsBackground()
         self.objmask = ConfigMaskingObjects()
+        self.failed_fluxcalib = ConfigMaskFailedFluxCalib()
         self.suffix = self.suffix
 
     def run(self, filename: str | Path) -> Path:
@@ -130,6 +148,9 @@ class AfterSpec2Pipeline:
 
         if not self.failed_slit_open.skip:
             datamodel = masking_msa_failed_open(datamodel)
+
+        if not self.failed_fluxcalib.skip:
+            datamodel = mask_failedfluxcalibpix(datamodel, filename)
 
         # Mask objects
         if not self.objmask.skip:
@@ -167,6 +188,8 @@ class AfterSpec2Pipeline:
         fsave = path.name.replace('_1_cal', self.suffix + '_cal')
         output_dir = self.path_output_dir(path)
         datamodel.save(output_dir / fsave)
+
+        datamodel.close()
         return output_dir / fsave
 
     def path_output_dir(self, fname: Path) -> Path:
@@ -196,7 +219,7 @@ class AfterSpec3Pipeline:
 
 
 class CreateAsnFile:
-    def __init__(self, fnames: list[str | Path]):
+    def __init__(self, fnames: Sequence[str | Path]):
         self.fnames = fnames
         self.fname_asn = Path(fnames[0]).parent / 'Spec3.json'
         self.science: list[str] = []

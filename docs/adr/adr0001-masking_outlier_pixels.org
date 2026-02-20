@@ -1,0 +1,52 @@
+:PROPERTIES:
+:ID: ADR0001
+:END:
+#+title: ADR0001: Masking Outlier Pixels
+#+date: [2026-02-20 Fri.]
+
+* Status
+- [2026-02-20 金] APPROVED
+
+* Context
+The NIRSpec detectors include many bad pixels, which should not be used for science.
+As these pixel positions are fixed in detector coordinates, we can identify the positions by comparing multiple observations.
+There are potential bad pixels in cal.fits that are not converted to appropriate pixel values from rate.fits.
+
+* Decision
+We use the following three kinds of masks:
+1. Original outlier pixel masks, which are made from multiple rate.fits files ([[#Appendix1]]) [AfterDetecotr1].
+2. Meaningful data quality flags: (10, 11, 12, 13, 14, 15, 16, 21, 22, 23) [AfterDetecotr1]
+3. Masks removing possible mis-conversion in cal.fits [AfterSpec2]
+
+* Consequences
+- Our masks are relatively more secure than only DQ flagging.
+
+** positive
+- Possible outlier pixels are securely removed, which makes data cube cleaner.
+
+** negative
+- S/N per pixel might become lower because of less number of pixels.
+
+* Other Related ADRs
+No.
+
+* Appendix
+** Original outlier pixel masks.
+:PROPERTIES:
+:CUSTOM_ID: Appendix1
+:END:
+
+The original masks are masking outlier pixels with values exceeding 3sigma threshold in more than half of selected dithers, where sigma (s.t.d.) is measured along y-axis in the detectors.
+
+The objects used to make pixel masks. These data have a number of dithers in observations.
+- obsid=241667994: JADES_1093/F290LPG395H
+- obsid=242038196: JADES_61888/F290LPG395H
+- obsid=230488363: J0224-4711/F290LPG395H
+- obsid=135372513: COS-ZS7-1-COS-7.15/F290LPG395M
+- obsid=234358663: GN-108036/F290LPG395M
+- obsid=205448207: GS-9209/F170LPG235H
+- obsid=163216581: J0217-0208/F170LPG235H
+- obsid=99252562:  LACES104037/F170LPG235M
+- obsid=99516326:  LACES94460/F170LPG235M
+
+We used 1_rate.fits because we would like to use data in which the 1/f noise has been already subtracted.
