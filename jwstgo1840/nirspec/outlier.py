@@ -6,6 +6,7 @@ import warnings
 from pathlib import Path
 from dataclasses import dataclass, field
 from importlib.abc import Traversable
+from logging import getLogger
 import numpy as np
 from astropy.io import fits
 from astropy.stats import sigma_clip
@@ -13,6 +14,7 @@ from astropy.utils.exceptions import AstropyUserWarning
 from .jwst import IFUImageModel
 from .jwst.dqflag import dqflagging, is_dqflagged
 
+logger = getLogger(__name__)
 
 __all__ = [
     'ConfigSigmaClip',
@@ -77,6 +79,9 @@ def sigmaclip(data, dq, sigma=10):
             masked=True,
             axis=0,  # Clipping along spatial direction (y-axis)
         )  # normalized to avoid errors clipping for very large values??
+
+    n = np.count_nonzero(sigma_clip_array.mask & ~madata.mask)
+    logger.info(f'# of pixels removed by the sigma clip (sigma={sigma}): {n}')
 
     # Update mask for sigma-clipped pixels; Don't update for originally OUTLIER (=object) pixels
     mask_new = (madata.mask == 0) & (sigma_clip_array.mask == 1)

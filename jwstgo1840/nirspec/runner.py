@@ -269,7 +269,7 @@ class JWSTPipelineRunner:
         afterspec2.global_background.save_results = False
 
         # parameters
-        afterspec2.sigmaclip.sigma = 5
+        afterspec2.sigmaclip.sigma = 10
 
     def prepare_afterspec2_1strun(self) -> None:
         '''Custom parameters of AfterSpec2Pipeline for the 1st run.'''
@@ -342,6 +342,12 @@ class JWSTPipelineConfig:
     @property
     def filenames_rate(self) -> list[Path]:
         return [self._output_path / f.replace('uncal', 'rate') for f in self._filenames]
+
+    @property
+    def filenames_rate1(self) -> list[Path]:
+        return [
+            self._output_path / f.replace('uncal', '1_rate') for f in self._filenames
+        ]
 
     @property
     def filenames_cal(self) -> list[Path]:

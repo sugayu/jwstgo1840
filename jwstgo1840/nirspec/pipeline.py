@@ -2,7 +2,7 @@
 '''
 
 from __future__ import annotations
-from type import Sequence
+from typing import Sequence
 from importlib import resources
 from importlib.abc import Traversable
 from pathlib import Path
@@ -228,14 +228,14 @@ class CreateAsnFile:
 
     def contain_science_background_files(self):
         for f in self.fnames:
-            model = datamodels.open(f)
-            is_background = model.meta.observation.bkgdtarg
-            if is_background:
-                path_x1d = Path(f.replace('cal.fits', 'x1d.fits'))
-                if path_x1d.exists():
-                    self.background.append(path_x1d.name)
-            else:
-                self.science.append(Path(f).name)
+            with datamodels.open(f) as model:
+                is_background = model.meta.observation.bkgdtarg
+                if is_background:
+                    path_x1d = Path(f.replace('cal.fits', 'x1d.fits'))
+                    if path_x1d.exists():
+                        self.background.append(path_x1d.name)
+                else:
+                    self.science.append(Path(f).name)
 
     def dump(self, product_name: str = 'product_name'):
         asn = asn_from_list.asn_from_list(
