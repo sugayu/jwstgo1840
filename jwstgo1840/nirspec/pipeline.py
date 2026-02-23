@@ -30,6 +30,7 @@ from .masking import (
 )
 from .outlier import (
     sigmaclip,
+    wise_sigmaclip,
     MaskOutliers,
     mask_failedfluxcalibpix,
     ConfigSigmaClip,
@@ -162,8 +163,11 @@ class AfterSpec2Pipeline:
             )
 
         if not self.sigmaclip.skip:
-            datamodel.dq, clmask = sigmaclip(
-                datamodel.data, datamodel.dq, sigma=self.sigmaclip.sigma
+            # datamodel.dq, clmask = sigmaclip(
+            #     datamodel.data, datamodel.dq, sigma=self.sigmaclip.sigma
+            # )
+            datamodel.dq, clmask = wise_sigmaclip(
+                datamodel.data, datamodel.dq, config=self.sigmaclip
             )
             if self.sigmaclip.save_results:
                 fsave = path.name.replace('_1_cal', self.suffix + '_cal_clipped')

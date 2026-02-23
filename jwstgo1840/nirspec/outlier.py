@@ -21,6 +21,7 @@ __all__ = [
     'ConfigMaskOutliers',
     'ConfigMaskFailedFluxCalib',
     'sigmaclip',
+    'wise_sigmaclip',
     'MaskOutliers',
     'mask_failedfluxcalibpix',
     'create_pixelmask',
@@ -31,6 +32,8 @@ __all__ = [
 @dataclass
 class ConfigSigmaClip:
     sigma: float = 10.0
+    sigma_second: float | None = None
+    sigma_hotpix: float = 3.0
     skip: bool = False
     save_results: bool = False
 
@@ -60,7 +63,7 @@ class ConfigMaskFailedFluxCalib:
 
 
 def sigmaclip(data, dq, sigma=10):
-    '''Sigma clipping to flag outliers after Detector1
+    '''Sigma clipping to flag outliers after Detector1 and Spec2.
 
     Save two files with suffix of "_pixelmask" and "_rate_clipped".
     '''
@@ -87,6 +90,91 @@ def sigmaclip(data, dq, sigma=10):
     mask_new = (madata.mask == 0) & (sigma_clip_array.mask == 1)
     dq_new = dqflagging(dq, mask_new, 'DO_NOT_USE')
     return dq_new, mask_new
+
+
+def wise_sigmaclip(data, dq, config: ConfigSigmaClip):
+    '''Wise sigma clipping to find and flag outliers in AfterSpec2.
+
+    Several masking methodologies:
+    1. 1st sigma clipping with taking into account the possibility of object
+       - Flag if a pixel is negative.
+       - Do not flag if a pixel is sorrounded by 2nd sigma bright pixels
+       - Do not flag if a pixel is smaller than twice the sorrounded pix average.
+
+    In the future:
+    1. ...
+       - Do not flag if pixel is flagged among all the dithers on WCS.
+    2. hot pix sigma clipping
+       - Flag if a pixel is > 3rd sigma (sigma_hotpix) among all the dithers
+         on the detector coordinate.
+    '''
+    mask = is_dqflagged(dq, 'DO_NOT_USE')
+    madata: np.ma.MaskedArray = np.ma.masked_array(data, mask)
+
+    new_clipped = np.zeros_like(data).astype(bool)
+
+    def clip(sigma: float) -> np.ndarray:
+        return sigma_clip(
+            madata,  # / np.nanmedian(datamodel.data) - 1
+            sigma=sigma,
+            maxiters=None,
+            masked=True,
+            axis=0,  # Clipping along spatial direction (y-axis)
+        ).mask  # normalized to avoid errors clipping for very large values??
+
+    # Select candidates
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=AstropyUserWarning)
+        candidates = clip(config.sigma)
+        sigma_bright = (
+            config.sigma / 2.0 if config.sigma_second is None else config.sigma_second
+        )
+        pixels_bright = clip(sigma_bright)
+
+    candidates[mask] = False
+    pixels_bright[mask] = False
+    n = np.count_nonzero(candidates)
+    logger.info(f'# of outlier candidates by the {config.sigma} sigma clip: {n}')
+
+    # Start clipping pixels
+    is_negative = data < 0
+    new_clipped[candidates & is_negative] = True
+    candidates[is_negative] = False
+    n = np.count_nonzero(new_clipped)
+    logger.info(f'- # of negative outliers, which are clipped: {n}')
+
+    n_list = [0, 0]
+    for y, x in zip(*np.where(candidates)):
+        s = (slice(y - 1, y + 1), slice(x - 1, x + 1))
+        cutout = madata[s[0], s[1]]
+        cutout_bright = pixels_bright[s[0], s[1]]
+
+        brightness = (np.nansum(cutout) - cutout[1, 1]) / (np.count_nonzero(cutout) - 1)
+
+        if np.all(cutout_bright):
+            n_list[0] += 1
+
+        elif 2 * brightness > cutout[1, 1]:
+            n_list[1] += 1
+
+        else:  # TODO: This will be changed if 2nd hot pix clipping method is implemented.
+            new_clipped[y, x] = True
+
+        candidates[y, x] = False
+
+    logger.info(f'- # of pixels sorrounded by >{sigma_bright:.1f} pixels: {n_list[0]}')
+    logger.info(f'- # of pixels sorrounded by bright pixels: {n_list[1]}')
+
+    assert np.any(candidates) is False
+
+    # Update mask for sigma-clipped pixels
+    logger.info(
+        f'Consequently, # of sigma clipped pixels: {np.count_nonzero(new_clipped)}'
+    )
+    assert np.any(madata.mask & new_clipped) is False
+    # mask_new = ~madata.mask & new_clipped
+    dq_new = dqflagging(dq, new_clipped, 'DO_NOT_USE')
+    return dq_new, new_clipped
 
 
 class MaskOutliers:
