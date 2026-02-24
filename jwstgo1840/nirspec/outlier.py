@@ -137,7 +137,7 @@ def wise_sigmaclip(data, dq, config: ConfigSigmaClip):
     logger.info(f'# of outlier candidates by the {config.sigma} sigma clip: {n}')
 
     # Start clipping pixels
-    is_negative = data < 0
+    is_negative = data < np.nanmedian(madata, axis=0)
     new_clipped[candidates & is_negative] = True
     candidates[is_negative] = False
     n = np.count_nonzero(new_clipped)
@@ -147,15 +147,18 @@ def wise_sigmaclip(data, dq, config: ConfigSigmaClip):
     for y, x in zip(*np.where(candidates)):
         s = (slice(y - 1, y + 1), slice(x - 1, x + 1))
         cutout = madata[s[0], s[1]]
-        cutout_bright = pixels_bright[s[0], s[1]]
+        cutout_is_bright = pixels_bright[s[0], s[1]]
 
-        brightness = (np.nansum(cutout) - cutout[1, 1]) / (np.count_nonzero(cutout) - 1)
+        brightness = (np.nansum(cutout) - cutout[1, 1]) / (cutout.count() - 1)
 
-        if np.all(cutout_bright):
+        if np.any(cutout < 0):
+            new_clipped[y, x] = True
+
+        elif np.all(cutout_is_bright):
             n_list[0] += 1
 
-        elif 2 * brightness > cutout[1, 1]:
-            n_list[1] += 1
+        # elif 2 * brightness > cutout[1, 1]:
+        #     n_list[1] += 1
 
         else:  # TODO: This will be changed if 2nd hot pix clipping method is implemented.
             new_clipped[y, x] = True
@@ -165,13 +168,13 @@ def wise_sigmaclip(data, dq, config: ConfigSigmaClip):
     logger.info(f'- # of pixels sorrounded by >{sigma_bright:.1f} pixels: {n_list[0]}')
     logger.info(f'- # of pixels sorrounded by bright pixels: {n_list[1]}')
 
-    assert np.any(candidates) is False
+    assert not np.any(candidates)
 
     # Update mask for sigma-clipped pixels
     logger.info(
         f'Consequently, # of sigma clipped pixels: {np.count_nonzero(new_clipped)}'
     )
-    assert np.any(madata.mask & new_clipped) is False
+    assert not np.any(madata.mask & new_clipped)
     # mask_new = ~madata.mask & new_clipped
     dq_new = dqflagging(dq, new_clipped, 'DO_NOT_USE')
     return dq_new, new_clipped

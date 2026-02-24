@@ -269,7 +269,7 @@ class JWSTPipelineRunner:
         afterspec2.global_background.save_results = False
 
         # parameters
-        afterspec2.sigmaclip.sigma = 10
+        afterspec2.sigmaclip.sigma = 5
 
     def prepare_afterspec2_1strun(self) -> None:
         '''Custom parameters of AfterSpec2Pipeline for the 1st run.'''
