@@ -1,14 +1,15 @@
 '''Utilities using dq flag
 '''
+
 import numpy as np
-from jwst.datamodels import dqflags
+from stdatamodels.jwst.datamodels import dqflags
 
 
 ##
 dqflag = dqflags.pixel
 
 
-def dqflagging(dq, mask, flag):
+def dqflagging(dq: np.ndarray, mask: np.ndarray, flag: int | str) -> np.ndarray:
     '''Flag dq according to mask.'''
     dq_new, mask_new = np.copy(dq), np.copy(mask)
     already_flagged = is_dqflagged(dq, flag)
@@ -17,6 +18,15 @@ def dqflagging(dq, mask, flag):
     return dq_new
 
 
-def is_dqflagged(dq, flag):
+def is_dqflagged(dqmap: np.ndarray, flag: int | str) -> np.ndarray:
     '''Return boolean array of data quality flag.'''
-    return np.bitwise_and(dq, dqflag[flag]).astype(bool)
+    if isinstance(flag, int):
+        bytevalue = 2**flag
+    elif isinstance(flag, str):
+        bytevalue = dqflag[flag]
+    else:
+        raise ValueError(
+            f'DQ flag key has to be int or str, but the input is {flag} ({type(flag)}).'
+        )
+
+    return np.bitwise_and(dqmap, bytevalue).astype(bool)

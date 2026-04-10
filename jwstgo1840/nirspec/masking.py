@@ -152,9 +152,10 @@ def get_edgewidths(
 def masking_msa_failed_open(datamodel: IFUImageModel) -> IFUImageModel:
     '''Mask pixels with dq of MSA_FAILED_OPEN.'''
     msa_failed_open = is_dqflagged(datamodel.dq, 'MSA_FAILED_OPEN')
-    already_flagged = is_dqflagged(datamodel.dq, 'DO_NOT_USE')
-    msa_failed_open[already_flagged] = False
-    datamodel.dq[msa_failed_open] += dqflag['DO_NOT_USE']
+    datamodel.dq = dqflagging(datamodel.dq, msa_failed_open, 'DO_NOT_USE')
+    # already_flagged = is_dqflagged(datamodel.dq, 'DO_NOT_USE')
+    # msa_failed_open[already_flagged] = False
+    # datamodel.dq[msa_failed_open] += dqflag['DO_NOT_USE']
     return datamodel
 
 
