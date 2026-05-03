@@ -18,6 +18,7 @@ logger = getLogger(__name__)
 
 __all__ = [
     'ConfigSigmaClip',
+    'ConfigWiseSigmaClip',
     'ConfigMaskOutliers',
     'ConfigMaskFailedFluxCalib',
     'sigmaclip',
@@ -37,6 +38,13 @@ class ConfigSigmaClip:
     skip: bool = False
     save_results: bool = False
 
+@dataclass
+class ConfigWiseSigmaClip:
+    sigma: float = 10.0
+    sigma_second: float | None = None
+    sigma_hotpix: float = 3.0
+    skip: bool = True
+    save_results: bool = False
 
 @dataclass
 class ConfigMaskOutliers:
@@ -92,7 +100,7 @@ def sigmaclip(data, dq, sigma=10):
     return dq_new, mask_new
 
 
-def wise_sigmaclip(data, dq, config: ConfigSigmaClip):
+def wise_sigmaclip(data, dq, config: ConfigWiseSigmaClip):
     '''Wise sigma clipping to find and flag outliers in AfterSpec2.
 
     Several masking methodologies:

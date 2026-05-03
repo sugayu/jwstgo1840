@@ -258,6 +258,7 @@ class JWSTPipelineRunner:
         # is_skip
         afterspec2.failed_slit_open.skip = False
         afterspec2.sigmaclip.skip = False
+        afterspec2.wisesigmaclip.skip = True
         afterspec2.slitedges.skip = False
         afterspec2.global_background.skip = False
         afterspec2.slits_background.skip = True
@@ -270,6 +271,7 @@ class JWSTPipelineRunner:
 
         # parameters
         afterspec2.sigmaclip.sigma = 5
+        afterspec2.wisesigmaclip.sigma = 5
 
     def prepare_afterspec2_1strun(self) -> None:
         '''Custom parameters of AfterSpec2Pipeline for the 1st run.'''
@@ -278,14 +280,16 @@ class JWSTPipelineRunner:
         # is_skip
         afterspec2.global_background.skip = True
         afterspec2.objmask.skip = True
+        afterspec2.wisesigmaclip.skip = True
 
     def prepare_afterspec2_2ndrun(self) -> None:
-        '''Custom parameters of AfterSpec2Pipeline for the 1st run.'''
+        '''Custom parameters of AfterSpec2Pipeline for the 2nd run.'''
         afterspec2 = self.afterspec2
 
         # is_skip
         afterspec2.global_background.skip = False
         afterspec2.objmask.skip = False
+        afterspec2.wisesigmaclip.skip = True
 
         # save_results
         afterspec2.global_background.save_results = True

@@ -34,6 +34,7 @@ from .outlier import (
     MaskOutliers,
     mask_failedfluxcalibpix,
     ConfigSigmaClip,
+    ConfigWiseSigmaClip,
     ConfigMaskOutliers,
     ConfigMaskFailedFluxCalib,
 )
@@ -135,6 +136,7 @@ class AfterSpec2Pipeline:
     def __init__(self) -> None:
         self.failed_slit_open = ConfigMaskingFailedSlitOpen()
         self.sigmaclip = ConfigSigmaClip()
+        self.wisesigmaclip = ConfigWiseSigmaClip()
         self.slitedges = ConfigMaskingSlitedge()
         self.global_background = ConfigSubtractGlobalBackground()
         self.slits_background = ConfigSubtractSlitsBackground()
@@ -163,12 +165,14 @@ class AfterSpec2Pipeline:
             )
 
         if not self.sigmaclip.skip:
-            # datamodel.dq, clmask = sigmaclip(
-            #     datamodel.data, datamodel.dq, sigma=self.sigmaclip.sigma
-            # )
-            datamodel.dq, clmask = wise_sigmaclip(
-                datamodel.data, datamodel.dq, config=self.sigmaclip
-            )
+            if not self.wisesigmaclip.skip:
+                datamodel.dq, clmask = wise_sigmaclip(
+                    datamodel.data, datamodel.dq, config=self.wisesigmaclip
+                )
+            else:
+                datamodel.dq, clmask = sigmaclip(
+                    datamodel.data, datamodel.dq, sigma=self.sigmaclip.sigma
+                )
             if self.sigmaclip.save_results:
                 fsave = path.name.replace('_1_cal', self.suffix + '_cal_clipped')
                 output_dir = self.path_output_dir(path)
