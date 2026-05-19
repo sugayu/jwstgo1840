@@ -271,7 +271,7 @@ class JWSTPipelineRunner:
 
         # parameters
         afterspec2.sigmaclip.sigma = 5
-        afterspec2.wisesigmaclip.sigma = 5
+        afterspec2.wisesigmaclip.sigma = 10
 
     def prepare_afterspec2_1strun(self) -> None:
         '''Custom parameters of AfterSpec2Pipeline for the 1st run.'''
