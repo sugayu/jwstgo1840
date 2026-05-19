@@ -147,6 +147,13 @@ The pixel-by-pixel masking by giving a 3D mask cube is under development.
 #+end_src
 
 * Release Notes
+
+** version 0.7.0
+- Change implementations of masking outlier pixels.
+  - details written in ADR0001
+- On the way of implimentations of "wise_sigmaclip" to avoid clipping real objects.
+  - In default, it will be skipped.
+
 ** version 0.6.0
 - Adjust this package to the new WCS logic of cal.fits data:
   [[https://github.com/spacetelescope/jwst/pull/9452][JP-3922: Add a slice map to NRS IFU model and WCS by melanieclarke · Pull Request #9452 · spacetelescope/jwst · GitHub]]
