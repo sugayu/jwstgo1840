@@ -148,10 +148,13 @@ The pixel-by-pixel masking by giving a 3D mask cube is under development.
 
 * Release Notes
 
+** version 0.7.1
+- Mistakenly, ~wise_sigmaclipe~ was not skipped and not an option. Ken has fixed it as we first intended.
+
 ** version 0.7.0
 - Change implementations of masking outlier pixels.
   - details written in ADR0001
-- On the way of implimentations of "wise_sigmaclip" to avoid clipping real objects.
+- On the way of implimentations of ~wise_sigmaclip~ to avoid clipping real objects.
   - In default, it will be skipped.
 
 ** version 0.6.0

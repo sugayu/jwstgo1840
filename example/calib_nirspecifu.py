@@ -57,6 +57,9 @@ def main_1st():
     fnames = jwstpipe.run_spec2(fnames, maximum_cores=8)
 
     jwstpipe.prepare_afterspec2_1strun()
+    # if using wise_sigmaclipping (beta ver.); in this case you don't need main_2nd (object masking is not needed)
+    ## jwstpipe.afterspec2.wisesigmaclip.skip = False
+    ## jwstpipe.afterspec2.global_background.skip = False
     fnames = jwstpipe.run_after_spec2(fnames)
 
     jwstpipe.prepare_spec3(fnames, firstrun=True)
